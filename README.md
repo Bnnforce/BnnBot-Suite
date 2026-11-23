@@ -43,7 +43,45 @@ BnnBot 不是一个包，是**三个仓库**配合跑起来的：
 
 ---
 
+## ⚡ 想一句话装完
+
+把下面这行丢给 DSH（或其他能跑命令的 AI）：
+
+```
+把 https://raw.githubusercontent.com/Bnnforce/BnnBot-Suite/main/INSTALL.md 读完并按它把 BnnBot 装好。装之前先问我要 QQ 机器人的 AppID 和 AppSecret；装完跑 verify.sh 验收，然后告诉我哪些验证过、哪些需要我自己做。
+```
+
+> ⚠️ 上面这行需要**仓库是公开的**才能拉到 raw 文件。
+> 私有仓库请改用：把 `INSTALL.md` 直接粘给 AI，或下载后给本地路径。
+
+| 文件 | 用途 |
+|---|---|
+| [`INSTALL.md`](INSTALL.md) | **自包含安装手册**（不依赖其他文档，人和 AI 都能照做） |
+| [`install.sh`](install.sh) | 一键安装脚本（装通道 / 插件 / 扩展包 / 写配置 / 验收） |
+| [`verify.sh`](verify.sh) | 只读验收脚本，随时可跑 |
+| [`PROMPT.txt`](PROMPT.txt) | 现成的一行指令（含 5 种变体） |
+| [`AGENT.md`](AGENT.md) | 给 AI 的严格执行规范（铁律 / 停止条件 / 回报格式） |
+| [`manifest.json`](manifest.json) | 机器可读的版本与检查项 |
+| [`checklist.md`](checklist.md) | 可勾选验收清单 |
+
+### 脚本用法
+
+```bash
+# 一键装（会问你要路径和凭证）
+bash install.sh
+
+# 非交互指定
+bash install.sh --workspace /sdcard/DSH \
+                --app-id <AppID> --app-secret <Secret>
+
+# 只验收，不改任何东西
+bash verify.sh --workspace /sdcard/DSH
+```
+
+---
+
 ## 从哪开始
+
 
 按顺序读，每篇读完都有「怎么确认这步成功」：
 

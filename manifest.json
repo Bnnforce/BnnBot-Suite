@@ -1,0 +1,178 @@
+{
+  "suite": "BnnBot-Suite",
+  "title": "BnnBot 套组",
+  "version": "1.0.0",
+  "updated": "2026-11-23",
+  "description": "QQ 机器人「人格 + 记忆 + 玩法」的部署总入口",
+  "license": "MIT",
+
+  "entrypoints": {
+    "human": "README.md",
+    "selfContained": "INSTALL.md",
+    "agent": "AGENT.md",
+    "checklist": "checklist.md",
+    "oneLiner": "PROMPT.txt",
+    "autoInstall": "install.sh",
+    "verify": "verify.sh"
+  },
+
+  "components": [
+    {
+      "id": "dsh",
+      "label": "DeepSeek Harness（宿主）",
+      "required": true,
+      "thirdParty": true,
+      "repo": "https://github.com/deepseek-ai/deepseek-harness",
+      "androidShell": {
+        "repo": "https://github.com/kelai141/dsh-mobile-apk",
+        "appName": "DeepCode",
+        "packageId": "com.dsharnessmobile.shell",
+        "minAndroid": "8.0",
+        "download": "https://kelai141.github.io/dsh-mobile-apk/",
+        "abi": { "realDevice": "arm64", "emulator": "x86_64" }
+      },
+      "license": "MIT",
+      "verified": "0.2.2-rc.3",
+      "requires": { "node": ">=24.9.0" }
+    },
+    {
+      "id": "qqbot-channel",
+      "label": "QQ 通道插件",
+      "required": true,
+      "thirdParty": true,
+      "npm": "@zaofan/dsh-qqbot",
+      "repo": "https://github.com/zaofan-make/dsh-qqbot",
+      "license": "AFL-3.0",
+      "verified": "1.13.20",
+      "minVersion": "1.13.16",
+      "install": { "kind": "pnpm", "cwd": "{PROFILE_DIR}", "cmd": "pnpm add @zaofan/dsh-qqbot" }
+    },
+    {
+      "id": "bnnbotbox",
+      "label": "人格 + 记忆插件",
+      "required": false,
+      "recommended": true,
+      "repo": "https://github.com/Bnnforce/dsh-bnnbotbox",
+      "license": "MIT",
+      "verified": "3.1.1",
+      "install": { "kind": "link", "cmd": "pnpm add \"link:{SRC_DIR}/dsh-bnnbotbox\"" },
+      "preInstall": ["git clone --depth 1 https://github.com/Bnnforce/dsh-bnnbotbox.git", "pnpm install"],
+      "hasBundledPersona": true,
+      "bundledPersona": {
+        "name": "小忆",
+        "path": "assets/default-persona/",
+        "installedTo": "{WORKSPACE}/Bot/人格/角色卡/小忆.md",
+        "overwriteBehavior": "never"
+      },
+      "configRows": [
+        {
+          "patchKind": "override-by-id",
+          "id": "bnnbotbox",
+          "note": "该行由插件自带 bundle patch 自动插入；这里只覆盖 config，绝不能写成 insert"
+        }
+      ]
+    },
+    {
+      "id": "bnn-custom",
+      "label": "群聊玩法扩展包",
+      "required": false,
+      "repo": "https://github.com/Bnnforce/dsh-qqbot-bnn-custom",
+      "license": "MIT",
+      "verified": "1.0.57",
+      "install": { "kind": "copy", "to": "{DATA_ROOT}/extension-packs/bnn-custom" },
+      "directoryNameMustBe": "bnn-custom",
+      "optionalDeps": { "silk-wasm": "^3.7.1" }
+    }
+  ],
+
+  "paths": {
+    "PROFILE": "${DSH_PROFILE:-web}",
+    "PROFILE_DIR": "${DSH_PROFILE_DIR:-$DSH_HOME/profiles/$DSH_PROFILE}",
+    "WORKSPACE": "${BNN_WORKSPACE:-$HOME/bnnbot}",
+    "DATA_ROOT": "${BNN_DATA_ROOT:-$WORKSPACE/Bot/dshqqbot}",
+    "SRC_DIR": "${BNN_SRC_DIR:-$HOME/bnnbot-src}",
+    "PATCH_FILE": "{PROFILE_DIR}/cordis.patch.yml"
+  },
+
+  "checks": [
+    {
+      "id": "node",
+      "desc": "Node 版本（DSH 硬要求）",
+      "cmd": "node --version",
+      "pass": ">=24.9.0"
+    },
+    {
+      "id": "pnpm",
+      "desc": "pnpm 存在",
+      "cmd": "pnpm --version",
+      "pass": ">=9"
+    },
+    {
+      "id": "plugin-import",
+      "desc": "插件真的能加载，且配置字段完整",
+      "cmd": "cd {PROFILE_DIR} && node --input-type=module -e \"const m=await import('dsh-bnnbotbox');console.log(m.name,Object.keys(m.Config.dict).length)\"",
+      "pass": "输出 `bnnbotbox 52`",
+      "why": "32 = 老版本（配置没合并）；文件存在不算通过"
+    },
+    {
+      "id": "cards",
+      "desc": "13 张卡片真的能 import",
+      "cmd": "见 INSTALL.md 第 5 步",
+      "pass": "cards=13/13 PASS",
+      "why": "历史事故：文件都在、检查器全绿、实际一张都加载不了"
+    },
+    {
+      "id": "version-guard",
+      "desc": "运行时加载状态",
+      "file": "{DATA_ROOT}/.qqbot-extensions/data/version-guard.json",
+      "pass": "status=ok（含 changed = 文件有变动，重启后消失）"
+    },
+    {
+      "id": "config-no-tab",
+      "desc": "YAML 不许 tab 缩进",
+      "cmd": "grep -nP '^\\t' {PATCH_FILE}",
+      "pass": "无输出"
+    }
+  ],
+
+  "knownLimits": [
+    {
+      "id": "active-message",
+      "desc": "QQ 官方机器人主动消息受限",
+      "detail": "群聊被动窗口 5 分钟最多 5 条；单聊 60 分钟最多 4 条。无窗口时主动发送会失败。",
+      "effect": "「主动说话」类功能可能失败，日志出现「主动消息失败, 无权限」属正常",
+      "notABug": true
+    },
+    {
+      "id": "assets-required",
+      "desc": "素材需自备且不会自动建目录",
+      "detail": "曲库(.mp3) / 美图库(图片) / 事件库(.md) 不在仓库内（版权原因）",
+      "effect": "缺素材时对应玩法友好降级，不报错"
+    },
+    {
+      "id": "memory-ts-source-missing",
+      "desc": "dsh-bnnbotbox 有 17 个文件没有 TS 源",
+      "detail": "lib/memory/(11) + lib/persona/r4/(4) + lib/shared/(2) 只有 .js",
+      "effect": "不影响使用；.js 带完整注释可直接改"
+    }
+  ],
+
+  "stopConditions": [
+    "拿不到 appId / appSecret",
+    "Node 版本 < 24.9.0 且无法升级",
+    "pnpm add 连续两次网络失败",
+    "插件 import 一直失败",
+    "需要删除或覆盖已有数据目录",
+    "配置文件里已有同名 id 且结构看不懂"
+  ],
+
+  "restartRequiredAfter": [
+    "cordis.patch.yml 变更",
+    "安装/升级任何插件",
+    "扩展包的 hooks/ 或 commands/ 变更"
+  ],
+
+  "hotReloadable": [
+    "扩展包的 inbound/ outbound/ tools/（QQ 里发 /tools-reload）"
+  ]
+}
