@@ -1,0 +1,8 @@
+# 文档仓库，一般不需要忽略什么
+.DS_Store
+Thumbs.db
+*.swp
+*~
+# 本地笔记（不入库）
+notes.local.md
+*.local.md
