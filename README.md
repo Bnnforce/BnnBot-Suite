@@ -119,6 +119,7 @@ bash verify.sh --workspace /sdcard/DSH
 | **一个 QQ 号** | 需要去 [QQ 开放平台](https://q.qq.com) 注册一个机器人应用，个人开发者可申请 |
 | **一台常开的机器** | 手机 / NAS / 小主机都行。**这台机器得一直开着**，关了她就不在线 |
 | **要花钱** | 模型调用按 token 计费。用便宜模型一天几毛到几块 |
+| **通道插件别乱升** | `@zaofan/dsh-qqbot` 钉在 `1.13.20`。上游 1.13.21+ 改了本套组补丁的目标文件，还把出站默认改成拒发 |
 
 ---
 
@@ -131,7 +132,7 @@ bash verify.sh --workspace /sdcard/DSH
 | **DSH** | `0.2.2-rc.3` | 插件要求 `>= 0.2.0-rc.2`。安卓装 [DeepCode APK](https://github.com/kelai141/dsh-mobile-apk) |
 | **Node.js** | `>= 20`（实测 v24） | 必须 |
 | **pnpm** | `>= 9` | 必须（npm 装 link 依赖会出问题） |
-| `@zaofan/dsh-qqbot` | `1.13.20` | 扩展包要求 `>= 1.13.16` |
+| `@zaofan/dsh-qqbot` | **`1.13.20`（钉死）** | ⚠️ 必须精确版本。上游只给下限没上限，升到 1.13.21+ 会踩补丁冲突与出站拒发 |
 | `dsh-bnnbotbox` | `3.1.1` | |
 | `dsh-qqbot-bnn-custom` | `1.0.57` | |
 | `silk-wasm`（可选） | `3.7.1` | 只有发语音条要用 |

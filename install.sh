@@ -15,10 +15,12 @@
 #   QQBOT_APP_SECRET  QQ 机器人 AppSecret
 #   BNN_SKIP_EXT      1 = 不装玩法扩展包
 #   BNN_NO_CONFIG     1 = 只装不写配置
+#   QQBOT_PLUGIN_VERSION  通道插件版本（默认 = 本套组适配过的版本，见下方常量）
+#   BNN_LATEST_PLUGIN 1 = 装通道插件的最新版（不推荐：上游可能改契约/默认值）
 #
 # 它做什么：
 #   ① 检查环境（node/pnpm/dsh）
-#   ② 装通道 @zaofan/dsh-qqbot
+#   ② 装通道 @zaofan/dsh-qqbot（★ 精确锁定到适配版本）
 #   ③ 装插件 dsh-bnnbotbox（clone + pnpm install + link）
 #   ④ 放扩展包 bnn-custom（可选）
 #   ⑤ 生成配置片段（不覆盖已有配置，只追加）
@@ -44,6 +46,24 @@ err()  { printf "${R}❌ %s${N}\n" "$*"; }
 die()  { err "$*"; echo; err "安装中止。修好上面这条再重跑本脚本。"; exit 1; }
 hr()   { printf '%s\n' "────────────────────────────────────────────"; }
 
+# ══════════════════════════════════════════════════════════════════════════
+# ★ 通道插件「适配版本」——唯一真源
+#
+# 为什么不装最新版：
+#   上游只声明 minPluginVersion（下限），**没有上限机制**，而真实风险是向上不兼容。
+#   实测 @zaofan/dsh-qqbot 1.13.21~1.13.23：
+#     · 把本套组打过补丁的 4 个 dist 文件全改了 ⇒ 补丁冲突，功能静默失效
+#     · outboundLastCtxFallback 默认改成 false（拒发）
+#       ⇒ 扩展包 outbound/60-split-bubbles 里不传 target 的 ctx.send() 全部失败
+#       ⇒ 多段回复只有第一段能发出去
+#
+# 所以默认精确安装这个版本。想用最新版：加 --latest-plugin，
+# 但要自己承担上面那些风险（装完先跑 verify.sh 看 compat 状态）。
+#
+# 改这里之前先确认：扩展包 qqbot-pack.json 的 testedWithPlugin 也改了。
+PINNED_QQBOT_VERSION="${QQBOT_PLUGIN_VERSION:-1.13.20}"
+LATEST_PLUGIN="${BNN_LATEST_PLUGIN:-0}"
+
 YES=0
 for a in "$@"; do
   case "$a" in
@@ -59,6 +79,8 @@ while [ $# -gt 0 ]; do
     --app-id)     QQBOT_APP_ID="${2:-}"; shift 2 ;;
     --app-secret) QQBOT_APP_SECRET="${2:-}"; shift 2 ;;
     --skip-ext)   BNN_SKIP_EXT=1; shift ;;
+    --latest-plugin) LATEST_PLUGIN=1; shift ;;
+    --plugin-version) PINNED_QQBOT_VERSION="$2"; shift 2 ;;
     --no-config)  BNN_NO_CONFIG=1; shift ;;
     *) shift ;;
   esac
@@ -137,14 +159,44 @@ mkdir -p "$BNN_DATA_ROOT/extension-packs" || die "建不了 dataRoot：$BNN_DATA
 # ② 装通道 @zaofan/dsh-qqbot
 # ══════════════════════════════════════════════════════════════════════════
 hr
-info "② 装通道 @zaofan/dsh-qqbot …"
+QDIR="$PROFILE_DIR/node_modules/@zaofan/dsh-qqbot"
+CUR_V=""
+if [ -f "$QDIR/package.json" ]; then
+  CUR_V="$(node -e "try{console.log(require('$QDIR/package.json').version)}catch(e){console.log('')}" 2>/dev/null)"
+fi
 
-if [ -d "$PROFILE_DIR/node_modules/@zaofan/dsh-qqbot" ]; then
-  V="$(node -e "try{console.log(require('$PROFILE_DIR/node_modules/@zaofan/dsh-qqbot/package.json').version)}catch(e){console.log('?')}" 2>/dev/null)"
-  ok "已装（$V），跳过"
+# 要装哪个版本
+if [ "$LATEST_PLUGIN" = "1" ]; then
+  TARGET_SPEC="@zaofan/dsh-qqbot"
+  TARGET_DESC="最新版（--latest-plugin，未验证）"
+  warn "你选择了最新版通道插件。上游若改了扩展点契约或默认值，本套组可能静默失效。"
+  warn "装完务必看 verify.sh 的 compat 结果。"
 else
-  ( cd "$PROFILE_DIR" && pnpm add @zaofan/dsh-qqbot ) || die "装通道失败（网络？）。手动重试：cd $PROFILE_DIR && pnpm add @zaofan/dsh-qqbot"
-  ok "通道已装"
+  TARGET_SPEC="@zaofan/dsh-qqbot@$PINNED_QQBOT_VERSION"
+  TARGET_DESC="钉住版本 $PINNED_QQBOT_VERSION（本套组适配过的）"
+fi
+
+info "目标：$TARGET_DESC"
+
+if [ -n "$CUR_V" ] && [ "$LATEST_PLUGIN" != "1" ] && [ "$CUR_V" = "$PINNED_QQBOT_VERSION" ]; then
+  ok "已装 $CUR_V，正是钉住的版本，跳过"
+else
+  if [ -n "$CUR_V" ]; then
+    warn "当前已装 $CUR_V → 要换成 $PINNED_QQBOT_VERSION"
+    [ "$LATEST_PLUGIN" = "1" ] && warn "  注意：最新版的契约变化可能导致扩展包功能静默失效"
+  fi
+  ( cd "$PROFILE_DIR" && pnpm add "$TARGET_SPEC" ) \
+    || die "装通道失败（网络？）。手动重试：cd $PROFILE_DIR && pnpm add $TARGET_SPEC"
+  NEW_V="$(node -e "try{console.log(require('$QDIR/package.json').version)}catch(e){console.log('')}" 2>/dev/null)"
+  ok "通道已装：$NEW_V"
+
+  # 装完立刻校验版本真的对上了（pnpm 有可能按原有 ^ 范围解到别的版本）
+  if [ "$LATEST_PLUGIN" != "1" ] && [ "$NEW_V" != "$PINNED_QQBOT_VERSION" ]; then
+    err "期望 $PINNED_QQBOT_VERSION，实际装成了 $NEW_V"
+    err "常见原因：profile 里原有 ^ 范围声明，pnpm 按范围解了。手动钉死："
+    err "  cd $PROFILE_DIR && pnpm add @zaofan/dsh-qqbot@$PINNED_QQBOT_VERSION --save-exact"
+    die "通道版本没锁住"
+  fi
 fi
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -343,7 +395,19 @@ vok() { ok "$*"; PASS=$((PASS+1)); }
 vno() { err "$*"; FAIL=$((FAIL+1)); }
 
 # 通道
-[ -d "$PROFILE_DIR/node_modules/@zaofan/dsh-qqbot" ] && vok "通道已装" || vno "通道缺失"
+# 通道：存在 + 版本对得上（钉住版本才是「适配过」的状态）
+if [ -d "$PROFILE_DIR/node_modules/@zaofan/dsh-qqbot" ]; then
+  VQ="$(node -e "try{console.log(require('$QDIR/package.json').version)}catch(e){console.log('')}" 2>/dev/null)"
+  if [ "$LATEST_PLUGIN" = "1" ]; then
+    vwarn "通道 $VQ（--latest-plugin，未验证）"
+  elif [ "$VQ" = "$PINNED_QQBOT_VERSION" ]; then
+    vok "通道 $VQ（= 钉住版本）"
+  else
+    vno "通道 $VQ ≠ 钉住版本 $PINNED_QQBOT_VERSION（升级上游后可能静默失效）"
+  fi
+else
+  vno "通道缺失"
+fi
 
 # 插件能导入
 if [ "${IMPORT_OUT%|*}" = "bnnbotbox|52" ] || [ "$IMPORT_OUT" = "bnnbotbox|52|systemPrompt,llm,tools" ]; then

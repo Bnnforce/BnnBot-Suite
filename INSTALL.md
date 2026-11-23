@@ -110,18 +110,39 @@ bash install.sh \
 
 ## 第 3 步：手动装（脚本不可用时）
 
-### 3.1 装通道 `@zaofan/dsh-qqbot`
+### 3.1 装通道 `@zaofan/dsh-qqbot`（★ 装指定的版本）
 
 ```bash
 cd "{PROFILE_DIR}"
-pnpm add @zaofan/dsh-qqbot
+pnpm add @zaofan/dsh-qqbot@1.13.20
 ```
 
-验证：
+> ⚠️ **必须钉版本，不要装最新版。**
+>
+> 上游只声明最低版本（`minPluginVersion`），**没有上限机制**，而真实风险是「向上不兼容」。
+> 实测 `1.13.21`~`1.13.23` 这批版本：
+>
+> | 上游改动 | 对本套组的影响 |
+> |---|---|
+> | 改了本套组打过补丁的 4 个 dist 文件 | 补丁冲突，相关功能**静默失效** |
+> | `outboundLastCtxFallback` 默认改为 `false`（拒发） | 扩展包 `outbound/60-split-bubbles` 里不传 target 的 `ctx.send()` **全部失败** ⇒ 多段回复只有第一段能发出去 |
+>
+> **为什么不靠 `^1.13.20`**：`^` 允许自动升到 `1.13.23`，上面两个坑都会踩。
+>
+> 想用最新版：自己承担风险，装完必须看 `verify.sh` 的 `compat` 结果。
+
+验证（**必须完全等于这个版本**）：
 
 ```bash
 node -e "console.log(require('{PROFILE_DIR}/node_modules/@zaofan/dsh-qqbot/package.json').version)"
-# 期望 >= 1.13.16
+# 期望输出：1.13.20（不是 >= 1.13.16，也不是 1.13.23）
+```
+
+装成了别的版本怎么办（pnpm 按老范围解了）：
+
+```bash
+cd "{PROFILE_DIR}"
+pnpm add @zaofan/dsh-qqbot@1.13.20 --save-exact
 ```
 
 ### 3.2 装插件 `dsh-bnnbotbox`

@@ -5,7 +5,6 @@
   "updated": "2026-11-23",
   "description": "QQ 机器人「人格 + 记忆 + 玩法」的部署总入口",
   "license": "MIT",
-
   "entrypoints": {
     "human": "README.md",
     "selfContained": "INSTALL.md",
@@ -15,7 +14,6 @@
     "autoInstall": "install.sh",
     "verify": "verify.sh"
   },
-
   "components": [
     {
       "id": "dsh",
@@ -29,11 +27,16 @@
         "packageId": "com.dsharnessmobile.shell",
         "minAndroid": "8.0",
         "download": "https://kelai141.github.io/dsh-mobile-apk/",
-        "abi": { "realDevice": "arm64", "emulator": "x86_64" }
+        "abi": {
+          "realDevice": "arm64",
+          "emulator": "x86_64"
+        }
       },
       "license": "MIT",
       "verified": "0.2.2-rc.3",
-      "requires": { "node": ">=24.9.0" }
+      "requires": {
+        "node": ">=24.9.0"
+      }
     },
     {
       "id": "qqbot-channel",
@@ -45,7 +48,18 @@
       "license": "AFL-3.0",
       "verified": "1.13.20",
       "minVersion": "1.13.16",
-      "install": { "kind": "pnpm", "cwd": "{PROFILE_DIR}", "cmd": "pnpm add @zaofan/dsh-qqbot" }
+      "install": {
+        "kind": "pnpm",
+        "cwd": "{PROFILE_DIR}",
+        "cmd": "pnpm add @zaofan/dsh-qqbot@1.13.20 --save-exact",
+        "note": "必须精确版本，不要用 ^"
+      },
+      "pinnedVersion": "1.13.20",
+      "pinReason": "上游无上限版本机制；1.13.21+ 改了本套组 4 个补丁目标文件、把 outboundLastCtxFallback 默认改为拒发 ⇒ 多段回复只有第一段能发出去",
+      "optOut": {
+        "flag": "--latest-plugin",
+        "note": "装最新版：自担风险，装完看 verify.sh 的 compat"
+      }
     },
     {
       "id": "bnnbotbox",
@@ -55,8 +69,14 @@
       "repo": "https://github.com/Bnnforce/dsh-bnnbotbox",
       "license": "MIT",
       "verified": "3.1.1",
-      "install": { "kind": "link", "cmd": "pnpm add \"link:{SRC_DIR}/dsh-bnnbotbox\"" },
-      "preInstall": ["git clone --depth 1 https://github.com/Bnnforce/dsh-bnnbotbox.git", "pnpm install"],
+      "install": {
+        "kind": "link",
+        "cmd": "pnpm add \"link:{SRC_DIR}/dsh-bnnbotbox\""
+      },
+      "preInstall": [
+        "git clone --depth 1 https://github.com/Bnnforce/dsh-bnnbotbox.git",
+        "pnpm install"
+      ],
       "hasBundledPersona": true,
       "bundledPersona": {
         "name": "小忆",
@@ -79,12 +99,16 @@
       "repo": "https://github.com/Bnnforce/dsh-qqbot-bnn-custom",
       "license": "MIT",
       "verified": "1.0.57",
-      "install": { "kind": "copy", "to": "{DATA_ROOT}/extension-packs/bnn-custom" },
+      "install": {
+        "kind": "copy",
+        "to": "{DATA_ROOT}/extension-packs/bnn-custom"
+      },
       "directoryNameMustBe": "bnn-custom",
-      "optionalDeps": { "silk-wasm": "^3.7.1" }
+      "optionalDeps": {
+        "silk-wasm": "^3.7.1"
+      }
     }
   ],
-
   "paths": {
     "PROFILE": "${DSH_PROFILE:-web}",
     "PROFILE_DIR": "${DSH_PROFILE_DIR:-$DSH_HOME/profiles/$DSH_PROFILE}",
@@ -93,7 +117,6 @@
     "SRC_DIR": "${BNN_SRC_DIR:-$HOME/bnnbot-src}",
     "PATCH_FILE": "{PROFILE_DIR}/cordis.patch.yml"
   },
-
   "checks": [
     {
       "id": "node",
@@ -134,7 +157,6 @@
       "pass": "无输出"
     }
   ],
-
   "knownLimits": [
     {
       "id": "active-message",
@@ -156,7 +178,6 @@
       "effect": "不影响使用；.js 带完整注释可直接改"
     }
   ],
-
   "stopConditions": [
     "拿不到 appId / appSecret",
     "Node 版本 < 24.9.0 且无法升级",
@@ -165,14 +186,32 @@
     "需要删除或覆盖已有数据目录",
     "配置文件里已有同名 id 且结构看不懂"
   ],
-
   "restartRequiredAfter": [
     "cordis.patch.yml 变更",
     "安装/升级任何插件",
     "扩展包的 hooks/ 或 commands/ 变更"
   ],
-
   "hotReloadable": [
     "扩展包的 inbound/ outbound/ tools/（QQ 里发 /tools-reload）"
-  ]
+  ],
+  "versionPinning": {
+    "principle": "上游只给下限、没有上限；本套组按「验证过的精确版本」安装",
+    "channelPlugin": "1.13.20",
+    "extensionPackDeclares": {
+      "file": "qqbot-pack.json",
+      "fields": [
+        "minPluginVersion",
+        "testedWithPlugin",
+        "maxPluginVersion"
+      ]
+    },
+    "upgradeProcedure": [
+      "先读上游 CHANGELOG，确认改了哪些 dist 文件 / 新增哪些默认值",
+      "重打本套组维护的 4 个 dist 补丁（tool-presenter / face-tags / botplay / session）",
+      "检查 outboundLastCtxFallback 等新增默认值是否符合预期",
+      "跑 node 维护/05-工具/run-all-checks.mjs 与 scripts/qqbot-preflight.mjs",
+      "改 qqbot-pack.json 的 testedWithPlugin / maxPluginVersion",
+      "改 install.sh 的 PINNED_QQBOT_VERSION 与 INSTALL.md"
+    ]
+  }
 }
