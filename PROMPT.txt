@@ -7,14 +7,14 @@
 下载并读 https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.0.1/INSTALL.md ，照它装 BnnBot。
 
 【全自动，少问】
-下载 https://github.com/Bnnforce/BnnBot-Suite/releases/latest/download/install.sh 和同目录的 INSTALL.md，
+下载 https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.0.1/install.sh 和同目录的 INSTALL.md，
 按 INSTALL.md 执行；路径自己定（工作区用 ~/bnnbot），只在要 appId/appSecret 时问我。
 
 【只装人格不装玩法】
 同上，但跳过扩展包（只装 dsh-bnnbotbox）。
 
 【只检查不装】
-下载 https://github.com/Bnnforce/BnnBot-Suite/releases/latest/download/verify.sh ，
+下载 https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.0.1/verify.sh ，
 对我的现有安装做验收（参数见 INSTALL.md 第 5 步），报告结果，不要装或改任何东西。
 
 【本地文件版】（拉不到时）
