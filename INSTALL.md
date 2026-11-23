@@ -5,6 +5,24 @@
 
 ---
 
+## 怎么拿到这份文件（如果你还没拿到）
+
+```
+https://github.com/Bnnforce/BnnBot-Suite/releases/latest/download/INSTALL.md
+```
+
+⚠️ **不要用 `raw.githubusercontent.com`** —— 本机实测该域名会连接重置（HTTP 000），
+`cdn.jsdelivr.net` 也一样。上面的 releases 直链连测 3 次全部 200。
+
+同目录还有可执行脚本：
+
+```
+https://github.com/Bnnforce/BnnBot-Suite/releases/latest/download/install.sh
+https://github.com/Bnnforce/BnnBot-Suite/releases/latest/download/verify.sh
+```
+
+---
+
 ## 给 AI 代理：先读这五条
 
 1. **先向人类要 `appId` 和 `appSecret`。拿不到就先只装不配，别自己编。**
