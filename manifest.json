@@ -1,7 +1,7 @@
 {
   "suite": "BnnBot-Suite",
   "title": "BnnBot 套组",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "updated": "2026-11-24",
   "description": "QQ 机器人「人格 + 记忆 + 玩法」的部署总入口",
   "license": "MIT",
@@ -250,5 +250,16 @@
       "item": "模型",
       "note": "必须先在 DSH 设置里选模型，否则不回复；脚本只检测不代配"
     }
+  ],
+  "installFlags": [
+    "--owner-openid <openid>",
+    "--c2c-mode open|allowlist|disabled",
+    "--group-mode open|allowlist|disabled",
+    "--no-patch",
+    "--latest-plugin",
+    "--plugin-version <v>",
+    "--skip-ext",
+    "--no-config",
+    "--profile <name>"
   ]
 }

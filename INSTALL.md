@@ -8,7 +8,7 @@
 ## 怎么拿到这份文件（如果你还没拿到）
 
 ```
-https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.0.4/INSTALL.md
+https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.0.5/INSTALL.md
 ```
 
 ⚠️ **不要用 `raw.githubusercontent.com`** —— 本机实测该域名会连接重置（HTTP 000），
@@ -17,8 +17,8 @@ https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.0.4/INSTALL.md
 同目录还有可执行脚本：
 
 ```
-https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.0.4/install.sh
-https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.0.4/verify.sh
+https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.0.5/install.sh
+https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.0.5/verify.sh
 ```
 
 ---
@@ -80,6 +80,20 @@ echo "DSH_PROFILE_DIR=$DSH_PROFILE_DIR"
 ```
 
 **要不到就继续装（只是配置留占位符），但必须明确告知人类最后要自己填。**
+
+---
+
+### 可选参数（不填就用默认）
+
+```bash
+./install.sh --owner-openid <你的openid>   # 主人白名单（不填=所有「仅主人」检查放行）
+./install.sh --c2c-mode disabled           # 私聊访问：open / allowlist / disabled
+./install.sh --group-mode allowlist        # 群聊访问：同上
+./install.sh --no-patch                    # 不打通道补丁（不推荐）
+```
+
+**为什么访问模式要用参数而不是界面**：QQ 机器人设置页不提供 `access` 这两个开关（实测），
+只能写配置文件。默认 `open` = 谁都能私聊机器人；只想自己用就设 `--c2c-mode disabled`。
 
 ---
 

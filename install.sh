@@ -19,6 +19,8 @@
 #   BNN_LATEST_PLUGIN 1 = 装通道插件的最新版（不推荐：上游可能改契约/默认值）
 #   BNN_NO_PATCH      1 = 不给通道打补丁（一般不用；打了才是完整功能）
 #   BNN_OWNER_OPENID  主人的 QQ openid（决定「仅主人」类功能对谁开放；不填 = 所有主人校验放行）
+#   BNN_C2C_MODE      私聊访问模式：open / allowlist / disabled（默认 open）
+#   BNN_GROUP_MODE    群聊访问模式：open / allowlist / disabled（默认 open）
 #
 # 它做什么：
 #   ① 检查环境（node/pnpm/dsh）
@@ -85,6 +87,8 @@ while [ $# -gt 0 ]; do
     --latest-plugin) LATEST_PLUGIN=1; shift ;;
     --no-patch)   BNN_NO_PATCH=1; shift ;;
     --owner-openid) OWNER_OPENID="${2:-}"; shift 2 ;;
+    --c2c-mode)     C2C_MODE="${2:-}"; shift 2 ;;
+    --group-mode)   GROUP_MODE="${2:-}"; shift 2 ;;
     --plugin-version) PINNED_QQBOT_VERSION="$2"; shift 2 ;;
     --no-config)  BNN_NO_CONFIG=1; shift ;;
     *) shift ;;
@@ -494,6 +498,14 @@ else
   # 主人白名单：决定「仅主人」类检查对谁开放。
   # ⚠️ qqbot 的 owners 为空时 = **不校验**（所有主人检查放行），
   #    因为它只从 config.groupAdmin.owners 读（caps.owners / ctx.isOwner 同源）。
+  # 访问模式：GUI 里没有这两个开关（「QQ 机器人」设置页不提供），只能写配置。
+  # 默认 open = 谁都能聊；想只让自己用就 --c2c-mode disabled。
+  C2C_MODE="${C2C_MODE:-${BNN_C2C_MODE:-open}}"
+  GROUP_MODE="${GROUP_MODE:-${BNN_GROUP_MODE:-open}}"
+  case "$C2C_MODE" in open|allowlist|disabled) ;; *) die "--c2c-mode 只能是 open / allowlist / disabled" ;; esac
+  case "$GROUP_MODE" in open|allowlist|disabled) ;; *) die "--group-mode 只能是 open / allowlist / disabled" ;; esac
+  ok "访问模式：私聊 $C2C_MODE / 群聊 $GROUP_MODE"
+
   OWNER_OPENID="${OWNER_OPENID:-${BNN_OWNER_OPENID:-}}"
   if [ -n "$OWNER_OPENID" ]; then
     OWNER_YAML="        groupAdmin:
@@ -528,6 +540,9 @@ else
         appId: '${APP_ID}'
         appSecret: '${APP_SECRET}'
         settingsNs: 'im-qqbot-2'
+        access:
+          c2cMode: '${C2C_MODE}'
+          groupMode: '${GROUP_MODE}'
 ${OWNER_YAML}
         preset: 'qqbot'
         cwd: '${BNN_WORKSPACE}/Bot'
