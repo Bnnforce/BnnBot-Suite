@@ -59,6 +59,22 @@
       "optOut": {
         "flag": "--latest-plugin",
         "note": "装最新版：自担风险，装完看 verify.sh 的 compat"
+      },
+      "patches": {
+        "dir": "patches/qqbot-1.13.20/",
+        "count": 4,
+        "license": "AFL-3.0（上游派生，不在本套组 MIT 范围内）",
+        "markers": [
+          "QQBotLocalPatch:face-type-image",
+          "QQBotLocalPatch:session-cmd-context",
+          "QQBotSecurityPatch:botplay-clicker-id",
+          "QQBotSecurityPatch:safe-reply-fallback",
+          "QQBotSecurityPatch:safe-reply-mention",
+          "QQBotSecurityPatch:web-tool-error-silent"
+        ],
+        "rationale": "上游 1.13.20 有 4 个真 bug：卡片点击者身份缺失会让抽奖图鉴/小店/权限判断记错人（最严重）；图片表情被误判成「微笑」；会话命令在 web 上下文抛 TypeError；群内漏工具错误",
+        "autoAppliedBy": "install.sh（--no-patch 可跳过）",
+        "verifiedBy": "verify.sh（6/6 marker）"
       }
     },
     {

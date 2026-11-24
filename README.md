@@ -63,6 +63,7 @@ BnnBot 不是一个包，是**三个仓库**配合跑起来的：
 | [`PROMPT.txt`](PROMPT.txt) | 现成的一行指令（含 5 种变体） |
 | [`AGENT.md`](AGENT.md) | 给 AI 的严格执行规范（铁律 / 停止条件 / 回报格式） |
 | [`manifest.json`](manifest.json) | 机器可读的版本与检查项 |
+| [`patches/`](patches/qqbot-1.13.20/README.md) | 通道补丁（修上游 4 个 bug，AFL-3.0 派生，见其中的 LICENSE-NOTICE） |
 | [`checklist.md`](checklist.md) | 可勾选验收清单 |
 
 ### 脚本用法
@@ -133,6 +134,7 @@ bash verify.sh --workspace /sdcard/DSH
 | **Node.js** | `>= 20`（实测 v24） | 必须 |
 | **pnpm** | `>= 9` | 必须（npm 装 link 依赖会出问题） |
 | `@zaofan/dsh-qqbot` | **`1.13.20`（钉死）** | ⚠️ 必须精确版本。上游只给下限没上限，升到 1.13.21+ 会踩补丁冲突与出站拒发 |
+| 通道补丁 | **4 个**（`patches/qqbot-1.13.20/`） | install.sh 自动打；修上游 4 个真 bug（含卡片点击者身份） |
 | `dsh-bnnbotbox` | `3.1.1` | |
 | `dsh-qqbot-bnn-custom` | `1.0.57` | |
 | `silk-wasm`（可选） | `3.7.1` | 只有发语音条要用 |

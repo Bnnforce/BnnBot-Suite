@@ -17,10 +17,12 @@
 #   BNN_NO_CONFIG     1 = 只装不写配置
 #   QQBOT_PLUGIN_VERSION  通道插件版本（默认 = 本套组适配过的版本，见下方常量）
 #   BNN_LATEST_PLUGIN 1 = 装通道插件的最新版（不推荐：上游可能改契约/默认值）
+#   BNN_NO_PATCH      1 = 不给通道打补丁（一般不用；打了才是完整功能）
 #
 # 它做什么：
 #   ① 检查环境（node/pnpm/dsh）
 #   ② 装通道 @zaofan/dsh-qqbot（★ 精确锁定到适配版本）
+#   ②b 给通道打 4 个补丁（上游 1.13.20 的真 bug，随套组分发）
 #   ③ 装插件 dsh-bnnbotbox（clone + pnpm install + link）
 #   ④ 放扩展包 bnn-custom（可选）
 #   ⑤ 生成配置片段（不覆盖已有配置，只追加）
@@ -80,6 +82,7 @@ while [ $# -gt 0 ]; do
     --app-secret) QQBOT_APP_SECRET="${2:-}"; shift 2 ;;
     --skip-ext)   BNN_SKIP_EXT=1; shift ;;
     --latest-plugin) LATEST_PLUGIN=1; shift ;;
+    --no-patch)   BNN_NO_PATCH=1; shift ;;
     --plugin-version) PINNED_QQBOT_VERSION="$2"; shift 2 ;;
     --no-config)  BNN_NO_CONFIG=1; shift ;;
     *) shift ;;
@@ -196,6 +199,89 @@ else
     err "常见原因：profile 里原有 ^ 范围声明，pnpm 按范围解了。手动钉死："
     err "  cd $PROFILE_DIR && pnpm add @zaofan/dsh-qqbot@$PINNED_QQBOT_VERSION --save-exact"
     die "通道版本没锁住"
+  fi
+fi
+
+# ══════════════════════════════════════════════════════════════════════════
+# ②b 给通道打补丁（上游 1.13.20 的 4 个真 bug）
+#
+# 为什么必须打：这 4 个补丁修的是上游 bug，不打会直接影响 BnnBot ——
+#   · botplay 点击者身份缺失 → 抽奖图鉴记错人、小店归属错、权限判断失效（最严重）
+#   · 图片表情被当成经典表情 → 群友发贴纸她一律理解成「微笑」
+#   · 会话命令 scope 兜底 → /子会话、/会话列表 在 web 上下文抛 TypeError
+#   · 群内不展示联网工具凭据/错误
+# 补丁是 diff（不分发整文件），许可说明见 patches/qqbot-<版本>/LICENSE-NOTICE.md
+# ══════════════════════════════════════════════════════════════════════════
+PATCH_MARKERS="QQBotLocalPatch:face-type-image QQBotLocalPatch:session-cmd-context QQBotSecurityPatch:botplay-clicker-id QQBotSecurityPatch:safe-reply-fallback QQBotSecurityPatch:safe-reply-mention QQBotSecurityPatch:web-tool-error-silent"
+
+count_patch_markers() {
+  local pkg="$1"
+  local hit=0
+  for m in $PATCH_MARKERS; do
+    if grep -q "$m" "$pkg/dist/features/botplay.js" "$pkg/dist/features/face-tags.js" \
+         "$pkg/dist/commands/session.js" "$pkg/dist/transport/tool-presenter.js" 2>/dev/null; then
+      hit=$((hit+1))
+    fi
+  done
+  echo "$hit"
+}
+
+if [ "${BNN_NO_PATCH:-0}" = "1" ]; then
+  warn "跳过通道补丁（--no-patch）—— 卡片点击者身份等修复不会生效"
+else
+  info "②b 给通道打补丁 …"
+  QPKG="$PROFILE_DIR/node_modules/@zaofan/dsh-qqbot"
+  if [ ! -d "$QPKG" ]; then
+    warn "通道未安装，跳过补丁"
+  else
+    HIT="$(count_patch_markers "$QPKG")"
+    if [ "$HIT" = "6" ]; then
+      ok "补丁已在位（6/6 marker），跳过"
+    elif [ "$HIT" != "0" ]; then
+      err "补丁状态不明：6 个 marker 只有 $HIT 个在位"
+      err "可能是半途打坏或上游版本不符。手动处理："
+      err "  cd \"$QPKG\" && git checkout -- . 2>/dev/null || pnpm add @zaofan/dsh-qqbot@$PINNED_QQBOT_VERSION --force"
+      die "补丁状态异常，已停下（不硬打，避免把文件打坏）"
+    else
+      # 拿补丁：优先用本脚本同目录的 patches/，否则 clone 套组仓库
+      PATCH_ROOT=""
+      HERE_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd || echo '')"
+      if [ -n "$HERE_DIR" ] && [ -d "$HERE_DIR/patches/qqbot-$PINNED_QQBOT_VERSION" ]; then
+        PATCH_ROOT="$HERE_DIR/patches/qqbot-$PINNED_QQBOT_VERSION"
+      else
+        SUITE_DIR="$SRC_DIR/BnnBot-Suite"
+        if [ ! -d "$SUITE_DIR/.git" ]; then
+          info "拉取套组仓库以获取补丁…"
+          git clone --depth 1 https://github.com/Bnnforce/BnnBot-Suite.git "$SUITE_DIR" >/dev/null 2>&1 \
+            || warn "拉取套组仓库失败，将跳过补丁"
+        fi
+        [ -d "$SUITE_DIR/patches/qqbot-$PINNED_QQBOT_VERSION" ] && PATCH_ROOT="$SUITE_DIR/patches/qqbot-$PINNED_QQBOT_VERSION"
+      fi
+
+      if [ -z "$PATCH_ROOT" ]; then
+        warn "找不到 patches/qqbot-$PINNED_QQBOT_VERSION，跳过补丁"
+        warn "（不打补丁也能跑，但卡片点击者身份等 4 个修复不生效）"
+      elif ! command -v patch >/dev/null 2>&1; then
+        warn "系统没有 patch 命令，跳过补丁（可用 git apply 手动打）"
+      else
+        APPLIED=0
+        for pf in "$PATCH_ROOT"/*.patch; do
+          [ -f "$pf" ] || continue
+          if ( cd "$QPKG" && patch -p1 --forward --silent < "$pf" ); then
+            APPLIED=$((APPLIED+1))
+          else
+            warn "补丁未应用（可能已打过）：$(basename "$pf")"
+          fi
+        done
+        HIT2="$(count_patch_markers "$QPKG")"
+        if [ "$HIT2" = "6" ]; then
+          ok "通道补丁完成（$APPLIED 个文件，marker 6/6）"
+        else
+          err "补丁后 marker 只有 $HIT2/6 —— 可能上游版本不符"
+          die "补丁未完全生效。核对：pnpm ls @zaofan/dsh-qqbot 应为 $PINNED_QQBOT_VERSION"
+        fi
+      fi
+    fi
   fi
 fi
 

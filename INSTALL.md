@@ -83,6 +83,34 @@ echo "DSH_PROFILE_DIR=$DSH_PROFILE_DIR"
 
 ---
 
+## 第 1.5 步：通道补丁（脚本会自动做）
+
+装完通道插件后，install.sh 会**自动打 4 个补丁**，修的是上游 `@zaofan/dsh-qqbot@1.13.20` 的真 bug：
+
+| 补丁 | 修什么 | 不打会怎样 |
+|---|---|---|
+| botplay 点击者身份 | 卡片回调拿到正确的 `ctx.user.openid` | 🔴 抽奖图鉴记错人、小店归属错、权限判断失效 |
+| 图片表情 | `faceType=6` 输出「【图片表情】」而非猜成「微笑」 | 🟠 群友发贴纸她一律理解成在笑 |
+| 会话命令兜底 | `getScopePeer` 用 `caps.replyTarget` 兜底 + fork 超时 | 🟠 `/子会话` `/会话列表` 在 web 上下文抛错 |
+| 工具错误静默 | 群内不展示联网工具凭据/内部错误 | 🟡 群里可能漏原始报错 |
+
+补丁文件在 `patches/qqbot-1.13.20/`（**只分发 diff，不分发整文件**）。
+
+> ⚠️ 许可：`@zaofan/dsh-qqbot` 是 **AFL-3.0**，这些 diff 属于其派生内容，
+> 受 AFL-3.0 约束，**不在本套组的 MIT 范围内**。详见 `patches/qqbot-1.13.20/LICENSE-NOTICE.md`。
+
+校验（6 个 marker 必须全在）：
+
+```bash
+cd "{PROFILE_DIR}/node_modules/@zaofan/dsh-qqbot"
+grep -rhoE "QQBot(Security|Local)Patch:[a-z-]+" dist/features/botplay.js \
+  dist/features/face-tags.js dist/commands/session.js dist/transport/tool-presenter.js | sort -u
+```
+
+跳过补丁：`install.sh --no-patch`（**不推荐**，功能会缺一块）。
+
+---
+
 ## 第 2 步：一键装（推荐）
 
 如果本文件旁边的 `install.sh` 可用：

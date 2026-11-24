@@ -66,6 +66,26 @@ QDIR="$PROFILE_DIR/node_modules/@zaofan/dsh-qqbot"
 if [ -d "$QDIR" ]; then
   QV="$(node -e "try{console.log(require('$QDIR/package.json').version)}catch(e){console.log('?')}" 2>/dev/null)"
   vok "通道 @zaofan/dsh-qqbot $QV"
+
+  # 通道补丁（上游 1.13.20 的 4 个真 bug；缺了卡片点击者身份会错）
+  PM="QQBotLocalPatch:face-type-image QQBotLocalPatch:session-cmd-context"
+  PM="$PM QQBotSecurityPatch:botplay-clicker-id QQBotSecurityPatch:safe-reply-fallback"
+  PM="$PM QQBotSecurityPatch:safe-reply-mention QQBotSecurityPatch:web-tool-error-silent"
+  HIT=0
+  for m in $PM; do
+    if grep -q "$m" "$QDIR/dist/features/botplay.js" "$QDIR/dist/features/face-tags.js" \
+         "$QDIR/dist/commands/session.js" "$QDIR/dist/transport/tool-presenter.js" 2>/dev/null; then
+      HIT=$((HIT+1))
+    fi
+  done
+  if [ "$HIT" = "6" ]; then
+    vok "通道补丁 6/6 marker 在位"
+  elif [ "$HIT" = "0" ]; then
+    vno "通道补丁未打（0/6）—— 卡片点击者身份会错，抽奖图鉴/小店/权限受影响"
+    warn "  修复：重跑 install.sh，或手动 patch -p1 < patches/qqbot-1.13.20/*.patch"
+  else
+    vno "通道补丁状态不明（$HIT/6）—— 可能上半途打坏"
+  fi
 else
   vno "通道未安装"
 fi

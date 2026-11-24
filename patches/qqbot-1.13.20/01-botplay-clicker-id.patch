@@ -1,0 +1,169 @@
+--- a/dist/features/botplay.js
++++ b/dist/features/botplay.js
+@@ -560,7 +560,10 @@
+      *   群里的签到统计就该发群里; 要私聊给某人可以 ctx.markdown 之外自己判断(本期不做)。
+      */
+     buildExtCtx(args) {
+-        const { ev, extFile, cardId, target, state, clickerId } = args;
++        /* QQBotSecurityPatch:botplay-clicker-id (2026-11-17 重打，适配 1.13.16) */
++        const { ev, extFile, cardId, target, state, clickerId, triggererId } = args;
++        // 点击路径给 clickerId；发卡路径(onInit)只给 triggererId → 两者都认
++        const _clicker = clickerId ?? triggererId;
+         const dataRoot = (() => { try {
+             return this.dataRootGetter() || '';
+         }
+@@ -704,7 +707,7 @@
+             expireSec: ev.expireSec,
+             scope: target.scope === 'group' ? 'group' : 'c2c',
+             peerId: target.targetId,
+-        }, cardId, clickerId ? { openid: clickerId, clickedBefore: args.clickedBefore ?? 0 } : undefined);
++        }, cardId, _clicker ? { openid: _clicker, clickedBefore: args.clickedBefore ?? 0 } : undefined);
+     }
+     /** 把模块给的按钮洗成合法形状(缺 id/label 的丢掉; 防止脏数据把 keyboard 生成搞炸) */
+     sanitizeExtButtons(buttons) {
+@@ -824,7 +827,7 @@
+             // 事件 id → 直接触发发卡(点击者本人为 triggerer, 权限由事件 perm 决定)
+             const ev = this.findEvent(cat.key);
+             if (!ev) {
+-                await this.safeReply(replyTarget, '该事件已被删除, 请刷新目录~');
++                await this.safeReply(replyTarget, '该事件已被删除, 请刷新目录~', presserId);
+                 return true;
+             }
+             await this.trigger(replyTarget, ev.id, presserId);
+@@ -836,14 +839,14 @@
+         const card = this.cards.get(parsed.cardId);
+         if (!card) {
+             // 卡不存在(重启后内存清空/已失效) → 提示重发
+-            await this.safeReply(replyTarget, '这张互动卡片已失效, 请重新发 /botplay 触发~');
++            await this.safeReply(replyTarget, '这张互动卡片已失效, 请重新发 /botplay 触发~', presser);
+             return true;
+         }
+         // 过期校验(2026-10-05: 自定义事件也走一次 onExpire, 让模块知道卡片死了)
+         if (Date.now() > card.expireAt) {
+             this.cards.delete(parsed.cardId);
+             await this.fireExtExpire(card);
+-            await this.safeReply(replyTarget, '这张互动卡片已超时失效, 请重新发 /botplay~');
++            await this.safeReply(replyTarget, '这张互动卡片已超时失效, 请重新发 /botplay~', presser);
+             return true;
+         }
+         // 事件仍存在才受理(删除后旧卡失效提示重配); 按钮/权限/名称一律走【发卡时快照】,
+@@ -851,19 +854,19 @@
+         const ev = this.findEvent(card.eventId);
+         if (!ev) {
+             this.cards.delete(parsed.cardId);
+-            await this.safeReply(replyTarget, '该互动事件已被删除, 请让管理员重新配置~');
++            await this.safeReply(replyTarget, '该互动事件已被删除, 请让管理员重新配置~', presser);
+             return true;
+         }
+         const btn = card.buttons.find((b) => b.id === parsed.buttonId);
+         if (!btn) {
+-            await this.safeReply(replyTarget, '按钮配置已更新, 请重新触发这张卡片~');
++            await this.safeReply(replyTarget, '按钮配置已更新, 请重新触发这张卡片~', presser);
+             return true;
+         }
+         // 点击人权限校验(与发卡 permission 双保险; 按快照 perm, 群看 member_openid, c2c 看 user_openid)
+         const presser = e.group_member_openid ?? e.user_openid ?? '';
+         const allowed = this.checkPerm(card.perm, card, presser);
+         if (!allowed) {
+-            await this.safeReply(replyTarget, '这个按钮只有指定的人能点哦~');
++            await this.safeReply(replyTarget, '这个按钮只有指定的人能点哦~', presser);
+             return true;
+         }
+         // 连点防刷: maxClicks>0 时扣减, 点满失效
+@@ -909,7 +912,7 @@
+             // jump_url 是官方 type=0 跳转按钮 → 点击时客户端直接跳, 不会走到回调;
+             // 若仍收到回调(降级/不可跳)则提示用户直接点链接。
+             const url = String(btn.botAction?.url ?? '').trim();
+-            await this.safeReply(replyTarget, url ? `跳转按钮: ${url}(如未自动跳转请手动打开)` : '该按钮是跳转按钮, 请在支持跳转的客户端点击');
++            await this.safeReply(replyTarget, url ? `跳转按钮: ${url}(如未自动跳转请手动打开)` : '该按钮是跳转按钮, 请在支持跳转的客户端点击', presser);
+         }
+         else if (actionType === 'command') {
+             // command 指令型(Phase2): 点击 → host 直接执行斜杠命令(不经 AI 文本)。
+@@ -919,15 +922,15 @@
+                 try {
+                     const text = await this.commandExecutor(cmdName, replyTarget);
+                     if (text && text.trim())
+-                        await this.safeReply(replyTarget, text);
++                        await this.safeReply(replyTarget, text, presser);
+                 }
+                 catch (err) {
+                     this.logger.warn(`[botplay] command 执行失败 ${cmdName}: ${err instanceof Error ? err.message : String(err)}`);
+-                    await this.safeReply(replyTarget, `指令执行失败: ${err instanceof Error ? err.message : String(err)}`);
++                    await this.safeReply(replyTarget, `指令执行失败: ${err instanceof Error ? err.message : String(err)}`, presser);
+                 }
+             }
+             else {
+-                await this.safeReply(replyTarget, cmdName ? '指令执行器未就绪, 请稍后再试~' : '这个按钮没配置要执行的命令');
++                await this.safeReply(replyTarget, cmdName ? '指令执行器未就绪, 请稍后再试~' : '这个按钮没配置要执行的命令', presser);
+             }
+         }
+         // callback=仅结算, 无 bot 回复
+@@ -952,13 +955,13 @@
+         if (!loaded) {
+             this.extDiag(`点击期模块加载失败 ${extFile}: ${error}`);
+             // 加载失败时给用户一句人话(而不是静默无反应), 方便主人定位
+-            await this.safeReply(replyTarget, `⚠️ 这个事件的模块加载失败, 请到面板看看错误摘要(文件: ${extFile})`);
++            await this.safeReply(replyTarget, `⚠️ 这个事件的模块加载失败, 请到面板看看错误摘要(文件: ${extFile})`, presser);
+             return;
+         }
+         const mod = loaded.mod;
+         if (typeof mod.onClick !== 'function') {
+             this.extDiag(`模块 ${extFile} 没有 onClick, 点击被忽略 button=${btn.id}`);
+-            await this.safeReply(replyTarget, '这个事件没有处理点击的逻辑(onClick)');
++            await this.safeReply(replyTarget, '这个事件没有处理点击的逻辑(onClick)', presser);
+             return;
+         }
+         const ev = this.findEvent(card.eventId) ?? { id: card.eventId, name: card.eventName, buttons: [] };
+@@ -984,7 +987,7 @@
+                 card.buttons = JSON.parse(JSON.stringify(state.buttons));
+             }
+             if (typeof ret === 'string' && ret.trim())
+-                await this.safeReply(replyTarget, ret.trim());
++                await this.safeReply(replyTarget, ret.trim(), presser);
+             card.extReply = typeof ret === 'string' ? ret : '';
+         }
+         catch (err) {
+@@ -993,7 +996,7 @@
+             state.error = `onClick 抛错: ${msg}`;
+             this.extDiag(`onClick 抛错 ${extFile} button=${btn.id}: ${msg}`);
+             this.logger.warn?.(`[botplay] ${extFile} onClick 抛错(已忽略): ${msg}`);
+-            await this.safeReply(replyTarget, `⚠️ 事件逻辑出错了(onClick): ${msg}`);
++            await this.safeReply(replyTarget, `⚠️ 事件逻辑出错了(onClick): ${msg}`, presser);
+         }
+         // 模块改过卡片(按钮 label style / 正文) → 重发刷新, 群里看到的就是最新状态
+         if (state.dirty) {
+@@ -1166,11 +1169,31 @@
+             this.logger.warn(`[botplay] append_wake 失败: ${err instanceof Error ? err.message : String(err)}`);
+         }
+     }
+-    async safeReply(target, text) {
++    async safeReply(target, text, mention) {
++        /* QQBotSecurityPatch:safe-reply-fallback (2026-11-15 重打，适配 1.13.6) */
++        /* QQBotSecurityPatch:safe-reply-mention (2026-11-15) */
++        // 主人要求：卡片失效/超时/权限不足等提示也要 @ 触发人。
++        // mention 单独一行 + 空行，再接正文（与 lib/card-format.mjs 同一口径）。
++        const raw = String(text ?? '').trim();
++        if (!raw)
++            return;
++        const uid = String(mention ?? '').trim();
++        const body = (uid && /^[A-Za-z0-9_-]+$/.test(uid)) ? `<@${uid}>\n\n${raw}` : raw;
+         try {
+-            await this.sender.sendMarkdown(target, text);
++            await this.sender.sendMarkdown(target, body);
++            return;
++        }
++        catch (first) {
++            // 人格切换会重建会话，旧卡片的 replyTarget.msgId 可能已过期；
++            // 退一步用不带 msgId 的主动发送，避免提示被静默吞掉。
++            try {
++                await this.sender.sendMarkdown({ ...target, msgId: undefined }, body);
++            }
++            catch (second) {
++                this.logger.warn?.(`[botplay] safeReply 失败: ${second instanceof Error ? second.message : String(second)}`);
++            }
++            void first;
+         }
+-        catch { /* 回复失败不致命 */ }
+     }
+     /**
+      * 通知自定义模块"这张卡片过期了"(onExpire; 2026-10-05)。
