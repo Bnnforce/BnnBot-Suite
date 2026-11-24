@@ -1,7 +1,7 @@
 {
   "suite": "BnnBot-Suite",
   "title": "BnnBot 套组",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "updated": "2026-11-24",
   "description": "QQ 机器人「人格 + 记忆 + 玩法」的部署总入口",
   "license": "MIT",
@@ -229,5 +229,26 @@
       "改 qqbot-pack.json 的 testedWithPlugin / maxPluginVersion",
       "改 install.sh 的 PINNED_QQBOT_VERSION 与 INSTALL.md"
     ]
-  }
+  },
+  "installSteps": [
+    "① 检查环境",
+    "② 装通道 @zaofan/dsh-qqbot（钉死 1.13.20）",
+    "②b 打 4 个通道补丁",
+    "②c 登记 profile bundles",
+    "②d 装 QQ 群聊预设（preset: qqbot）",
+    "③ 装插件 dsh-bnnbotbox",
+    "④ 放扩展包 bnn-custom",
+    "⑤ 生成配置片段",
+    "⑥ 跑验收"
+  ],
+  "knownGaps": [
+    {
+      "item": "groupAdmin.owners",
+      "note": "不设 = 所有「仅主人」检查放行；--owner-openid 可设"
+    },
+    {
+      "item": "模型",
+      "note": "必须先在 DSH 设置里选模型，否则不回复；脚本只检测不代配"
+    }
+  ]
 }

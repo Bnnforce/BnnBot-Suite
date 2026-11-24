@@ -1,0 +1,89 @@
+# QQ Bot 专用 Agent 预设
+#
+# ★ 2026-11-18 实测后的最终形态：本预设只声明「人格 + 工具组成」，**不做工具裁剪**。
+#
+#   为什么不做裁剪（重要，勿重新加回）：
+#     QQ bot 扩展包里有专门的裁剪 hook，比预设层更合适：
+#       Bot/dshqqbot/extension-packs/bnn-custom/hooks/trim-agent-tools.mjs
+#     它按 cwd 判定 QQ 会话，在 agent/created 时打 restrict，并配套
+#     zz-tool-security-guard.mjs 做执行层门禁。两套 restrict 是「相交」关系，
+#     在预设层再叠一套只会让人搞不清是谁裁的。
+#     ⇒ 裁剪职责归 trim-agent-tools.mjs；本预设只负责「这个会话由哪些插件组成」。
+#
+#   ★ 2026-11-18 二次调整：那个 hook 已由「白名单(ALLOW)」改为「黑名单(DENY)」。
+#     原因：白名单下每次新增工具（私聊/人格切换/语音，以及将来任何新插件）
+#     都必须回去改它，漏一次就表现为「模型说没有这个工具」，极难归因。
+#     改成黑名单后默认全部可用，只挡明确有害的（设备面/浏览器/编排/跨会话检索等）。
+#     ⇒ 因此下面 tool-fs 的 write/edit **现在是生效的**（模型看得见），
+#       具体能不能写由 guard 判：群友一律拒；主人需消息里有「写进文件」这类明确指令。
+- insert:
+    - id: preset-qqbot
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: qqbot
+        name: QQ 群聊
+        description: 群里的 bot 形态：只用群记忆与读写文件，不碰 shell、手机控制与插件管理。
+        order: 20
+        plugins:
+          # ── 人格：群聊口吻 ──────────────────────────────────────
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                你在一个 QQ 群里说话，用中文。你是群里的一个成员，不是客服，也不是助手。
+                ——短。多数时候一两句话够了，像手机打字，不要写成报告；
+                ——不要每条都列要点、加小标题、做总结；
+                ——不知道就说不知道，不要编造；
+                ——群友问「你记得吗」这类问题，先用 qq_memory 查，查到了再说，查不到就说没记到；
+                ——要把某件事记下来时，用 qq_memory 的 remember 写进去，别只在嘴里答应。
+                你没有 shell、手机控制、网页浏览这些能力，也不需要假装有。
+
+          # ── 文件工具 ────────────────────────────────────────
+          # read / read_image 是 trim-agent-tools 白名单里的，模型可见；
+          # write / edit 现在被那个 hook 挡住（见文件头说明），开关保留以便将来放开。
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+            config:
+              read: true
+              readImage: true
+              write: true
+              edit: true
+              applyPatch: false
+
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+            config:
+              sampleOverCapGlobResults: false
+
+          # ── 技能与待办 ──────────────────────────────────────
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
+          - id: tool-todo
+            name: '@deepseek-ai/dsh-tool-todo'
+            config:
+              allowParallelInProgress: false
+
+          # ── 需要问人时（群里一般不会用到，但留着不占多少）────
+          - id: tool-ask-user
+            name: '@deepseek-ai/dsh-tool-ask-user'
+
+          # ── 上下文压缩：群聊很长，必须有 ────────────────────
+          - id: compaction
+            name: cordis:group
+            group: true
+            isolate:
+              compaction: true
+              toolResultPruner: true
+            config:
+              - id: compaction-basic
+                name: '@deepseek-ai/dsh-compaction-basic'
+              - id: command-compact
+                name: '@deepseek-ai/dsh-command-compact'
+              - id: tool-result-pruner
+                name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+                config:
+                  thresholdChars: 8192
+                  headChars: 4096
+                  tailChars: 1024

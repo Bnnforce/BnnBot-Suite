@@ -1,0 +1,11 @@
+{
+  "name": "@local/dsh-qqbot-suite",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "description": "QQ Bot 专用 Agent 预设：群记忆 + 读写文件，不挂 shell、手机控制与插件管理。工具裁剪交给 extension-packs 的 trim-agent-tools hook。",
+  "files": [
+    "cordis.patch.yml"
+  ],
+  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } }
+}

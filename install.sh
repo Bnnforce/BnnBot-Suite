@@ -18,6 +18,7 @@
 #   QQBOT_PLUGIN_VERSION  通道插件版本（默认 = 本套组适配过的版本，见下方常量）
 #   BNN_LATEST_PLUGIN 1 = 装通道插件的最新版（不推荐：上游可能改契约/默认值）
 #   BNN_NO_PATCH      1 = 不给通道打补丁（一般不用；打了才是完整功能）
+#   BNN_OWNER_OPENID  主人的 QQ openid（决定「仅主人」类功能对谁开放；不填 = 所有主人校验放行）
 #
 # 它做什么：
 #   ① 检查环境（node/pnpm/dsh）
@@ -83,6 +84,7 @@ while [ $# -gt 0 ]; do
     --skip-ext)   BNN_SKIP_EXT=1; shift ;;
     --latest-plugin) LATEST_PLUGIN=1; shift ;;
     --no-patch)   BNN_NO_PATCH=1; shift ;;
+    --owner-openid) OWNER_OPENID="${2:-}"; shift 2 ;;
     --plugin-version) PINNED_QQBOT_VERSION="$2"; shift 2 ;;
     --no-config)  BNN_NO_CONFIG=1; shift ;;
     *) shift ;;
@@ -193,6 +195,13 @@ else
   NEW_V="$(node -e "try{console.log(require('$QDIR/package.json').version)}catch(e){console.log('')}" 2>/dev/null)"
   ok "通道已装：$NEW_V"
 
+  # ★ 登记进 bundles（不登记 = DSH 不加载，且不报错）
+  case "$(add_bundle @zaofan/dsh-qqbot)" in
+    added)   ok "已登记 @zaofan/dsh-qqbot 到 profile bundles" ;;
+    already) ok "@zaofan/dsh-qqbot 已在 profile bundles 里" ;;
+    *)       warn "登记 bundles 失败 —— 请手动在 dsh.profile.bundles 里加 @zaofan/dsh-qqbot" ;;
+  esac
+
   # 装完立刻校验版本真的对上了（pnpm 有可能按原有 ^ 范围解到别的版本）
   if [ "$LATEST_PLUGIN" != "1" ] && [ "$NEW_V" != "$PINNED_QQBOT_VERSION" ]; then
     err "期望 $PINNED_QQBOT_VERSION，实际装成了 $NEW_V"
@@ -286,6 +295,31 @@ else
 fi
 
 # ══════════════════════════════════════════════════════════════════════════
+# ②c 把包装进 profile 的 bundle 列表
+#
+# 为什么单独一步（这是个真断点）：
+#   pnpm add link:<dir> 只改 dependencies，**不写 dsh.profile.bundles**；
+#   而 DSH 是**按 bundles 列表**加载的。只 add 不登记 = 装好了但完全不生效，
+#   而且没有任何报错 —— 对新手就是「我按步骤做了，怎么没反应」。
+# ══════════════════════════════════════════════════════════════════════════
+add_bundle() {
+  local pkg="$1"
+  node -e '
+    const fs = require("fs");
+    const f = process.argv[1];
+    const pkg = process.argv[2];
+    const j = JSON.parse(fs.readFileSync(f, "utf8"));
+    j.dsh = j.dsh || {};
+    j.dsh.profile = j.dsh.profile || {};
+    j.dsh.profile.bundles = Array.isArray(j.dsh.profile.bundles) ? j.dsh.profile.bundles : [];
+    if (j.dsh.profile.bundles.includes(pkg)) { console.log("already"); process.exit(0); }
+    j.dsh.profile.bundles.push(pkg);
+    fs.writeFileSync(f, JSON.stringify(j, null, 2) + "\n");
+    console.log("added");
+  ' "$PROFILE_DIR/package.json" "$pkg"
+}
+
+# ══════════════════════════════════════════════════════════════════════════
 # ③ 装插件 dsh-bnnbotbox
 # ══════════════════════════════════════════════════════════════════════════
 hr
@@ -313,6 +347,12 @@ if [ -n "$CUR_DEP" ]; then
 fi
 ( cd "$PROFILE_DIR" && pnpm add "link:$PLUGIN_DIR" ) || die "挂载插件到 profile 失败"
 ok "插件已挂进 profile"
+# ★ 登记进 bundles（只 add 不登记 = 加载不到，且不报错）
+case "$(add_bundle dsh-bnnbotbox)" in
+  added)   ok "已登记 dsh-bnnbotbox 到 profile bundles" ;;
+  already) ok "dsh-bnnbotbox 已在 profile bundles 里" ;;
+  *)       warn "登记 bundles 失败 —— 请在 $PROFILE_DIR/package.json 的 dsh.profile.bundles 里手动加 dsh-bnnbotbox" ;;
+esac
 
 # 真验证：import 一遍
 info "验证插件能加载（不是看文件存在）…"
@@ -331,6 +371,46 @@ case "$IMPORT_OUT" in
     die "插件没装好。常见原因：没跑 pnpm install，或仓库版本过旧（配置字段应为 52）。"
     ;;
 esac
+
+# ══════════════════════════════════════════════════════════════════════════
+# ②d 安装 QQ 群聊预设（preset: qqbot）
+#
+# 为什么必须装（第二个真断点）：
+#   下面的配置会写 `preset: qqbot`，但那不是 DSH 自带的 —— 它由
+#   @local/dsh-qqbot-suite 这个 bundle 提供（声明「QQ 会话由哪些插件组成」）。
+#   不装它，配置就指向一个不存在的预设，会话创建会异常或悄悄回落默认形态
+#   （于是 shell / 手机控制 / 插件管理这些能力会直接暴露给群聊）。
+# ══════════════════════════════════════════════════════════════════════════
+PRESET_DIR="$BNN_WORKSPACE/presets/qqbot-suite"
+if [ -f "$PRESET_DIR/package.json" ]; then
+  ok "预设已存在：$PRESET_DIR"
+else
+  mkdir -p "$PRESET_DIR"
+  # 优先用套组自带的（脚本同目录 / 已 clone 的套组仓库）
+  SRC_PRESET=""
+  HERE_DIR_P="$(cd "$(dirname "$0")" 2>/dev/null && pwd || echo "")"
+  for cand in "$HERE_DIR_P/presets/qqbot-suite" "$SRC_DIR/BnnBot-Suite/presets/qqbot-suite"; do
+    [ -f "$cand/package.json" ] && SRC_PRESET="$cand" && break
+  done
+  if [ -n "$SRC_PRESET" ]; then
+    cp "$SRC_PRESET/package.json" "$SRC_PRESET/cordis.patch.yml" "$PRESET_DIR/" \
+      || die "复制预设失败"
+    ok "预设已从 $SRC_PRESET 复制"
+  else
+    warn "找不到预设源，将跳过 —— preset: qqbot 会指向不存在的预设"
+    warn "可手动从套组仓库复制 presets/qqbot-suite/ 到 $PRESET_DIR"
+  fi
+fi
+
+if [ -f "$PRESET_DIR/package.json" ]; then
+  ( cd "$PROFILE_DIR" && pnpm add "link:$PRESET_DIR" ) >/dev/null 2>&1 \
+    || warn "挂载预设到 profile 失败"
+  case "$(add_bundle @local/dsh-qqbot-suite)" in
+    added)   ok "已登记 @local/dsh-qqbot-suite 到 profile bundles" ;;
+    already) ok "@local/dsh-qqbot-suite 已在 profile bundles 里" ;;
+    *)       warn "登记预设 bundles 失败" ;;
+  esac
+fi
 
 # ══════════════════════════════════════════════════════════════════════════
 # ④ 放扩展包（可选）
@@ -411,6 +491,20 @@ else
     fi
   fi
 
+  # 主人白名单：决定「仅主人」类检查对谁开放。
+  # ⚠️ qqbot 的 owners 为空时 = **不校验**（所有主人检查放行），
+  #    因为它只从 config.groupAdmin.owners 读（caps.owners / ctx.isOwner 同源）。
+  OWNER_OPENID="${OWNER_OPENID:-${BNN_OWNER_OPENID:-}}"
+  if [ -n "$OWNER_OPENID" ]; then
+    OWNER_YAML="        groupAdmin:
+          owners:
+            - '$OWNER_OPENID'"
+    ok "主人白名单：$OWNER_OPENID"
+  else
+    OWNER_YAML=""
+    warn "未指定 --owner-openid：groupAdmin.owners 为空 = 所有「仅主人」检查都会放行"
+  fi
+
   if [ "${SKIP_APPEND:-0}" != "1" ]; then
     cat >> "$PATCH_FILE" <<YAML
 
@@ -434,6 +528,7 @@ else
         appId: '${APP_ID}'
         appSecret: '${APP_SECRET}'
         settingsNs: 'im-qqbot-2'
+${OWNER_YAML}
         preset: 'qqbot'
         cwd: '${BNN_WORKSPACE}/Bot'
         dataRoot: '${BNN_DATA_ROOT}'
@@ -530,6 +625,28 @@ hr
 printf "${BOLD}结果：%d 通过 / %d 失败${N}\n" "$PASS" "$FAIL"
 hr
 
+# ── 收尾提示：把「还需要人做的事」变成三行能照抄的话 ──
+if [ -n "$OWNER_OPENID" ]; then
+  OWNER_HINT="已写入 groupAdmin.owners = $OWNER_OPENID（重启后生效）"
+else
+  OWNER_HINT="还没设 → 先给机器人发一条消息，然后在 $BNN_DATA_ROOT 下的日志里搜你的 openid（形如 32 位大写十六进制），
+接着重跑：./install.sh --owner-openid <你的openid>（或直接编辑配置里的 groupAdmin.owners）
+  不设的后果：所有「只有主人能做」的功能对**任何人**开放。"
+fi
+
+# 模型检测：DSH 的默认模型在 profile 配置 / 设置界面里
+MODEL_HINT="在 DSH 设置 → 模型里确认已选一个可用模型"
+if node -e '
+  const fs=require("fs");
+  const f=process.argv[1];
+  const t=fs.readFileSync(f,"utf8");
+  process.exit(/agent-default-model/.test(t) && /provider:\s*\S/.test(t) ? 0 : 1);
+' "$PATCH_FILE" 2>/dev/null; then
+  MODEL_HINT="已检测到默认模型配置（agent-default-model）。若换模型，去 DSH 设置 → 模型 改，别改这个文件"
+else
+  MODEL_HINT="⚠️ 没检测到默认模型。去 DSH 设置 → 模型 选一个并保存，否则她不会回复"
+fi
+
 cat <<EOF
 
 ${BOLD}下一步（必须做）${N}
@@ -545,6 +662,12 @@ ${BOLD}下一步（必须做）${N}
 
 4) 去 QQ 群里 @ 机器人，看它会不会用自己的语气回你。
    没反应 → 检查 QQ 平台「沙箱配置」里有没有加这个群。
+
+5) 主人身份（决定「只有主人能做的事」对谁开放）
+   ${OWNER_HINT}
+
+6) 模型（没配模型 = 她一个字都不会回）
+   ${MODEL_HINT}
 
 ${Y}注意${N}：日志出现「主动消息失败, 无权限」是 QQ 平台的主动消息限制，
       不是 bug。群聊被动窗口 5 分钟 5 条，主动发言大概率失败。
