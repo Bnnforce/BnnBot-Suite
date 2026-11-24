@@ -66,6 +66,51 @@ hr()   { printf '%s\n' "──────────────────�
 # 但要自己承担上面那些风险（装完先跑 verify.sh 看 compat 状态）。
 #
 # 改这里之前先确认：扩展包 qqbot-pack.json 的 testedWithPlugin 也改了。
+# ══════════════════════════════════════════════════════════════════════════
+# ②c 把包装进 profile 的 bundle 列表
+#
+# 为什么单独一步（这是个真断点）：
+#   pnpm add link:<dir> 只改 dependencies，**不写 dsh.profile.bundles**；
+#   而 DSH 是**按 bundles 列表**加载的。只 add 不登记 = 装好了但完全不生效，
+#   而且没有任何报错 —— 对新手就是「我按步骤做了，怎么没反应」。
+# ══════════════════════════════════════════════════════════════════════════
+# ⚠️ 2026-11-24（干净环境验证抓到）：GitHub 连通性实测 2/3 次失败
+#   （OpenSSL SSL_read: unexpected eof）。原来一次失败就 die，新人必然卡住。
+git_clone_retry() {
+  local url="$1" dest="$2"
+  local tries=${3:-4}
+  local i=1
+  while [ "$i" -le "$tries" ]; do
+    if git clone --depth 1 "$url" "$dest" >/dev/null 2>&1; then
+      ok "clone 成功（第 $i 次尝试）"
+      return 0
+    fi
+    warn "clone 失败（第 $i/$tries 次），2 秒后重试…"
+    rm -rf "$dest" 2>/dev/null || true
+    sleep 2
+    i=$((i+1))
+  done
+  err "clone 连续失败 $tries 次：$url"
+  return 1
+}
+
+add_bundle() {
+  local pkg="$1"
+  node -e '
+    const fs = require("fs");
+    const f = process.argv[1];
+    const pkg = process.argv[2];
+    const j = JSON.parse(fs.readFileSync(f, "utf8"));
+    j.dsh = j.dsh || {};
+    j.dsh.profile = j.dsh.profile || {};
+    j.dsh.profile.bundles = Array.isArray(j.dsh.profile.bundles) ? j.dsh.profile.bundles : [];
+    if (j.dsh.profile.bundles.includes(pkg)) { console.log("already"); process.exit(0); }
+    j.dsh.profile.bundles.push(pkg);
+    fs.writeFileSync(f, JSON.stringify(j, null, 2) + "\n");
+    console.log("added");
+  ' "$PROFILE_DIR/package.json" "$pkg"
+}
+
 PINNED_QQBOT_VERSION="${QQBOT_PLUGIN_VERSION:-1.13.25}"
 LATEST_PLUGIN="${BNN_LATEST_PLUGIN:-0}"
 
@@ -80,7 +125,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --workspace)  BNN_WORKSPACE="${2:-}"; shift 2 ;;
     --data-root)  BNN_DATA_ROOT="${2:-}"; shift 2 ;;
-    --profile)    BNN_PROFILE="${2:-}"; shift 2 ;;
+    --profile)    BNN_PROFILE="${2:-}"; BNN_PROFILE_EXPLICIT=1; shift 2 ;;
     --app-id)     QQBOT_APP_ID="${2:-}"; shift 2 ;;
     --app-secret) QQBOT_APP_SECRET="${2:-}"; shift 2 ;;
     --skip-ext)   BNN_SKIP_EXT=1; shift ;;
@@ -136,7 +181,11 @@ info "确定安装路径…"
 
 DSH_HOME="${DSH_HOME:-$HOME/.dsh}"
 BNN_PROFILE="${BNN_PROFILE:-${DSH_PROFILE:-web}}"
-PROFILE_DIR="${DSH_PROFILE_DIR:-$DSH_HOME/profiles/$BNN_PROFILE}"
+if [ -n "${BNN_PROFILE_EXPLICIT:-}" ]; then
+  PROFILE_DIR="$DSH_HOME/profiles/$BNN_PROFILE"
+else
+  PROFILE_DIR="${DSH_PROFILE_DIR:-$DSH_HOME/profiles/$BNN_PROFILE}"
+fi
 
 if [ -z "${BNN_WORKSPACE:-}" ]; then
   if [ "$YES" -eq 1 ]; then
@@ -189,6 +238,12 @@ info "目标：$TARGET_DESC"
 
 if [ -n "$CUR_V" ] && [ "$LATEST_PLUGIN" != "1" ] && [ "$CUR_V" = "$PINNED_QQBOT_VERSION" ]; then
   ok "已装 $CUR_V，正是钉住的版本，跳过"
+  # ★ 2026-11-24 修：跳过安装时必须补登记（否则装了同版本但不在 bundles 里，DSH 不加载）
+  case "$(add_bundle @zaofan/dsh-qqbot)" in
+    added)   ok "已登记 @zaofan/dsh-qqbot 到 profile bundles" ;;
+    already) ok "@zaofan/dsh-qqbot 已在 profile bundles 里" ;;
+    *)       warn "登记 bundles 失败 —— 请手动加 @zaofan/dsh-qqbot" ;;
+  esac
 else
   if [ -n "$CUR_V" ]; then
     warn "当前已装 $CUR_V → 要换成 $PINNED_QQBOT_VERSION"
@@ -227,8 +282,10 @@ fi
 #   · 一旦回退，表现是「卡片图鉴记错人」「发贴纸被当成微笑」这种**不报错**的错。
 #   所以查功能代码，不查我们的私有注释标记（合并时不会保留）。
 # ══════════════════════════════════════════════════════════════════════════
+UPSTREAM_MISS=0
 check_upstream_fixes() {
   local pkg="$1"
+  UPSTREAM_MISS=0
   local miss=0
   _need() {
     if grep -q "$2" "$pkg/$1" 2>/dev/null; then ok "上游修复：$3"; else
@@ -240,7 +297,8 @@ check_upstream_fixes() {
   _need 'dist/commands/session.js' 'caps?.replyTarget' '会话命令上下文兜底'
   _need 'dist/commands/session.js' 'FORK_TIMEOUT' '/bot-new 超时保护'
   _need 'dist/transport/tool-presenter.js' "name === 'web_search' || name === 'web_fetch'" '联网工具错误静默'
-  echo "$miss"
+  UPSTREAM_MISS=$miss
+  return 0
 }
 
 if [ "${BNN_NO_PATCH:-0}" = "1" ]; then
@@ -251,7 +309,8 @@ else
   if [ ! -d "$QPKG" ]; then
     warn "通道未安装，跳过校验"
   else
-    MISS="$(check_upstream_fixes "$QPKG")"
+    check_upstream_fixes "$QPKG"
+    MISS="$UPSTREAM_MISS"
     if [ "$MISS" = "0" ]; then
       ok "上游 6 项修复全部在位"
     else
@@ -263,31 +322,7 @@ else
 fi
 
 # ══════════════════════════════════════════════════════════════════════════
-# ②c 把包装进 profile 的 bundle 列表# ══════════════════════════════════════════════════════════════════════════
 # ②c 把包装进 profile 的 bundle 列表
-#
-# 为什么单独一步（这是个真断点）：
-#   pnpm add link:<dir> 只改 dependencies，**不写 dsh.profile.bundles**；
-#   而 DSH 是**按 bundles 列表**加载的。只 add 不登记 = 装好了但完全不生效，
-#   而且没有任何报错 —— 对新手就是「我按步骤做了，怎么没反应」。
-# ══════════════════════════════════════════════════════════════════════════
-add_bundle() {
-  local pkg="$1"
-  node -e '
-    const fs = require("fs");
-    const f = process.argv[1];
-    const pkg = process.argv[2];
-    const j = JSON.parse(fs.readFileSync(f, "utf8"));
-    j.dsh = j.dsh || {};
-    j.dsh.profile = j.dsh.profile || {};
-    j.dsh.profile.bundles = Array.isArray(j.dsh.profile.bundles) ? j.dsh.profile.bundles : [];
-    if (j.dsh.profile.bundles.includes(pkg)) { console.log("already"); process.exit(0); }
-    j.dsh.profile.bundles.push(pkg);
-    fs.writeFileSync(f, JSON.stringify(j, null, 2) + "\n");
-    console.log("added");
-  ' "$PROFILE_DIR/package.json" "$pkg"
-}
-
 # ══════════════════════════════════════════════════════════════════════════
 # ③ 装插件 dsh-bnnbotbox
 # ══════════════════════════════════════════════════════════════════════════
@@ -298,11 +333,21 @@ SRC_DIR="${BNN_SRC_DIR:-$HOME/bnnbot-src}"
 mkdir -p "$SRC_DIR"
 
 PLUGIN_DIR="$SRC_DIR/dsh-bnnbotbox"
-if [ -d "$PLUGIN_DIR/.git" ] || [ -f "$PLUGIN_DIR/package.json" ]; then
+# ⚠️ 2026-11-24 修（干净环境验证抓到）：原来只判断 .git 或 package.json 存在。
+#   Android FUSE 上 clone 中断会留下"有 .git 但工作区是空"的残骸，
+#   于是脚本认定"已存在"跳过 clone → 下一步 pnpm install 报
+#   ERR_PNPM_NO_PKG_MANIFEST。这正是手册说的「文件在 ≠ 能跑」。
+#   现在：必须有 package.json 才算可用；.git 是空壳就清掉重克隆。
+if [ -d "$PLUGIN_DIR/.git" ] && [ ! -f "$PLUGIN_DIR/package.json" ]; then
+  warn "检测到不完整的 clone（有 .git 但没有 package.json）→ 清掉重来"
+  warn "  常见原因：上次 clone 被中断（网络/FUSE）"
+  rm -rf "$PLUGIN_DIR"
+fi
+if [ -d "$PLUGIN_DIR/.git" ] && [ -f "$PLUGIN_DIR/package.json" ]; then
   info "已存在 $PLUGIN_DIR，跳过 clone"
 else
-  git clone --depth 1 https://github.com/Bnnforce/dsh-bnnbotbox.git "$PLUGIN_DIR" \
-    || die "clone dsh-bnnbotbox 失败（仓库是否已公开？或网络问题）"
+  git_clone_retry https://github.com/Bnnforce/dsh-bnnbotbox.git "$PLUGIN_DIR" \
+    || die "clone dsh-bnnbotbox 连续失败，请检查网络后重跑"
 fi
 ok "插件源码：$PLUGIN_DIR"
 
@@ -390,10 +435,14 @@ if [ "${BNN_SKIP_EXT:-0}" = "1" ]; then
 else
   info "④ 放玩法扩展包 bnn-custom …"
   EXT_SRC="$SRC_DIR/dsh-qqbot-bnn-custom"
-  if [ -d "$EXT_SRC/.git" ]; then
+  if [ -d "$EXT_SRC/.git" ] && [ ! -f "$EXT_SRC/qqbot-pack.json" ]; then
+  warn "检测到不完整的扩展包 clone → 清掉重来"
+  rm -rf "$EXT_SRC"
+fi
+if [ -d "$EXT_SRC/.git" ] && [ -f "$EXT_SRC/qqbot-pack.json" ]; then
     info "已存在 $EXT_SRC，跳过 clone"
   else
-    git clone --depth 1 https://github.com/Bnnforce/dsh-qqbot-bnn-custom.git "$EXT_SRC" \
+    git_clone_retry https://github.com/Bnnforce/dsh-qqbot-bnn-custom.git "$EXT_SRC" \
       || die "clone 扩展包失败（仓库是否已公开？）"
   fi
 
@@ -485,7 +534,7 @@ else
   if [ "${SKIP_APPEND:-0}" != "1" ]; then
     cat >> "$PATCH_FILE" <<YAML
 
-# ── BnnBot 套组（由 install.sh 生成 $(date +%Y-%m-%d %H:%M)）──────────────
+# ── BnnBot 套组（由 install.sh 生成 $(date "+%Y-%m-%d %H:%M")）──────────────
 #
 # 【为什么这么写】DSH 的 loader patch 有两种写法，别搞混：
 #   · insert: [行]        → 新增一行

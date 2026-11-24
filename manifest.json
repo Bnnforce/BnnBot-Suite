@@ -1,7 +1,7 @@
 {
   "suite": "BnnBot-Suite",
   "title": "BnnBot 套组",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "updated": "2026-11-24",
   "description": "QQ 机器人「人格 + 记忆 + 玩法」的部署总入口",
   "license": "MIT",
@@ -250,5 +250,6 @@
   ],
   "versions": {
     "@zaofan/dsh-qqbot": "1.13.25"
-  }
+  },
+  "cleanInstallVerified": "2026-11-24：headless 干净环境从零装通，verify.sh 14 通过 / 0 失败"
 }
