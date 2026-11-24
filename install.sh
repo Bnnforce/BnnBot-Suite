@@ -554,6 +554,11 @@ else
         appId: '${APP_ID}'
         appSecret: '${APP_SECRET}'
         settingsNs: 'im-qqbot-2'
+        # ★ 2026-11-24 新增（真机事故：群里泄漏了 `FsError: FS_NOT_FOUND`）
+        #   上游 1.13.21 提供 toolErrorMode，默认 notify = 把工具报错**原文**发给模型，
+        #   模型会照着复述 ⇒ 群友看到一串英文错误。
+        #   群聊设 silent（不发），私聊仍是默认 notify（主人排查要看原文）。
+        toolErrorMode: 'silent'
         access:
           c2cMode: '${C2C_MODE}'
           groupMode: '${GROUP_MODE}'
