@@ -17,7 +17,7 @@
 #   BNN_NO_CONFIG     1 = 只装不写配置
 #   QQBOT_PLUGIN_VERSION  通道插件版本（默认 = 本套组适配过的版本，见下方常量）
 #   BNN_LATEST_PLUGIN 1 = 装通道插件的最新版（不推荐：上游可能改契约/默认值）
-#   BNN_NO_PATCH      1 = 不给通道打补丁（一般不用；打了才是完整功能）
+#   BNN_NO_PATCH      1 = 跳过上游修复校验（1.13.25 起补丁已上游化，一般不用）
 #   BNN_OWNER_OPENID  主人的 QQ openid（决定「仅主人」类功能对谁开放；不填 = 所有主人校验放行）
 #   BNN_C2C_MODE      私聊访问模式：open / allowlist / disabled（默认 open）
 #   BNN_GROUP_MODE    群聊访问模式：open / allowlist / disabled（默认 open）
@@ -25,7 +25,7 @@
 # 它做什么：
 #   ① 检查环境（node/pnpm/dsh）
 #   ② 装通道 @zaofan/dsh-qqbot（★ 精确锁定到适配版本）
-#   ②b 给通道打 4 个补丁（上游 1.13.20 的真 bug，随套组分发）
+#   ②b 校验上游修复是否在位（1.13.25 起不再需要打补丁）
 #   ③ 装插件 dsh-bnnbotbox（clone + pnpm install + link）
 #   ④ 放扩展包 bnn-custom（可选）
 #   ⑤ 生成配置片段（不覆盖已有配置，只追加）
@@ -66,7 +66,7 @@ hr()   { printf '%s\n' "──────────────────�
 # 但要自己承担上面那些风险（装完先跑 verify.sh 看 compat 状态）。
 #
 # 改这里之前先确认：扩展包 qqbot-pack.json 的 testedWithPlugin 也改了。
-PINNED_QQBOT_VERSION="${QQBOT_PLUGIN_VERSION:-1.13.20}"
+PINNED_QQBOT_VERSION="${QQBOT_PLUGIN_VERSION:-1.13.25}"
 LATEST_PLUGIN="${BNN_LATEST_PLUGIN:-0}"
 
 YES=0
@@ -216,89 +216,54 @@ else
 fi
 
 # ══════════════════════════════════════════════════════════════════════════
-# ②b 给通道打补丁（上游 1.13.20 的 4 个真 bug）
+# ②b 校验上游修复到位（1.13.25 起：补丁已上游化，不再打补丁）
 #
-# 为什么必须打：这 4 个补丁修的是上游 bug，不打会直接影响 BnnBot ——
-#   · botplay 点击者身份缺失 → 抽奖图鉴记错人、小店归属错、权限判断失效（最严重）
-#   · 图片表情被当成经典表情 → 群友发贴纸她一律理解成「微笑」
-#   · 会话命令 scope 兜底 → /子会话、/会话列表 在 web 上下文抛 TypeError
-#   · 群内不展示联网工具凭据/错误
-# 补丁是 diff（不分发整文件），许可说明见 patches/qqbot-<版本>/LICENSE-NOTICE.md
+# 历史：1.13.20 时代这里有 4 个本地 dist 补丁（卡片点击者身份、图片表情、
+#       会话命令兜底、联网工具错误静默）。这些修复已随 PR #88 合并进上游 1.13.25，
+#       所以**补丁目录已删除**，改为校验「功能代码是否在位」。
+#
+# 为什么还要校验：
+#   · 上游完全可能在某次重构里回退某条修复（它们的 CHANGELOG 不承诺语义稳定）；
+#   · 一旦回退，表现是「卡片图鉴记错人」「发贴纸被当成微笑」这种**不报错**的错。
+#   所以查功能代码，不查我们的私有注释标记（合并时不会保留）。
 # ══════════════════════════════════════════════════════════════════════════
-PATCH_MARKERS="QQBotLocalPatch:face-type-image QQBotLocalPatch:session-cmd-context QQBotSecurityPatch:botplay-clicker-id QQBotSecurityPatch:safe-reply-fallback QQBotSecurityPatch:safe-reply-mention QQBotSecurityPatch:web-tool-error-silent"
-
-count_patch_markers() {
+check_upstream_fixes() {
   local pkg="$1"
-  local hit=0
-  for m in $PATCH_MARKERS; do
-    if grep -q "$m" "$pkg/dist/features/botplay.js" "$pkg/dist/features/face-tags.js" \
-         "$pkg/dist/commands/session.js" "$pkg/dist/transport/tool-presenter.js" 2>/dev/null; then
-      hit=$((hit+1))
-    fi
-  done
-  echo "$hit"
+  local miss=0
+  _need() {
+    if grep -q "$2" "$pkg/$1" 2>/dev/null; then ok "上游修复：$3"; else
+      err "上游修复缺失：$3（$1）"; miss=$((miss+1)); fi
+  }
+  _need 'dist/features/botplay.js' 'clickerId ?? triggererId' '卡片点击者身份兜底'
+  _need 'dist/features/botplay.js' 'async safeReply(target, text, mention)' '卡片提示 @ 触发人'
+  _need 'dist/features/face-tags.js' '图片表情' '图片表情中性输出'
+  _need 'dist/commands/session.js' 'caps?.replyTarget' '会话命令上下文兜底'
+  _need 'dist/commands/session.js' 'FORK_TIMEOUT' '/bot-new 超时保护'
+  _need 'dist/transport/tool-presenter.js' "name === 'web_search' || name === 'web_fetch'" '联网工具错误静默'
+  echo "$miss"
 }
 
 if [ "${BNN_NO_PATCH:-0}" = "1" ]; then
-  warn "跳过通道补丁（--no-patch）—— 卡片点击者身份等修复不会生效"
+  warn "跳过上游修复校验（--no-patch）"
 else
-  info "②b 给通道打补丁 …"
+  info "②b 校验上游修复 …"
   QPKG="$PROFILE_DIR/node_modules/@zaofan/dsh-qqbot"
   if [ ! -d "$QPKG" ]; then
-    warn "通道未安装，跳过补丁"
+    warn "通道未安装，跳过校验"
   else
-    HIT="$(count_patch_markers "$QPKG")"
-    if [ "$HIT" = "6" ]; then
-      ok "补丁已在位（6/6 marker），跳过"
-    elif [ "$HIT" != "0" ]; then
-      err "补丁状态不明：6 个 marker 只有 $HIT 个在位"
-      err "可能是半途打坏或上游版本不符。手动处理："
-      err "  cd \"$QPKG\" && git checkout -- . 2>/dev/null || pnpm add @zaofan/dsh-qqbot@$PINNED_QQBOT_VERSION --force"
-      die "补丁状态异常，已停下（不硬打，避免把文件打坏）"
+    MISS="$(check_upstream_fixes "$QPKG")"
+    if [ "$MISS" = "0" ]; then
+      ok "上游 6 项修复全部在位"
     else
-      # 拿补丁：优先用本脚本同目录的 patches/，否则 clone 套组仓库
-      PATCH_ROOT=""
-      HERE_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd || echo '')"
-      if [ -n "$HERE_DIR" ] && [ -d "$HERE_DIR/patches/qqbot-$PINNED_QQBOT_VERSION" ]; then
-        PATCH_ROOT="$HERE_DIR/patches/qqbot-$PINNED_QQBOT_VERSION"
-      else
-        SUITE_DIR="$SRC_DIR/BnnBot-Suite"
-        if [ ! -d "$SUITE_DIR/.git" ]; then
-          info "拉取套组仓库以获取补丁…"
-          git clone --depth 1 https://github.com/Bnnforce/BnnBot-Suite.git "$SUITE_DIR" >/dev/null 2>&1 \
-            || warn "拉取套组仓库失败，将跳过补丁"
-        fi
-        [ -d "$SUITE_DIR/patches/qqbot-$PINNED_QQBOT_VERSION" ] && PATCH_ROOT="$SUITE_DIR/patches/qqbot-$PINNED_QQBOT_VERSION"
-      fi
-
-      if [ -z "$PATCH_ROOT" ]; then
-        warn "找不到 patches/qqbot-$PINNED_QQBOT_VERSION，跳过补丁"
-        warn "（不打补丁也能跑，但卡片点击者身份等 4 个修复不生效）"
-      elif ! command -v patch >/dev/null 2>&1; then
-        warn "系统没有 patch 命令，跳过补丁（可用 git apply 手动打）"
-      else
-        APPLIED=0
-        for pf in "$PATCH_ROOT"/*.patch; do
-          [ -f "$pf" ] || continue
-          if ( cd "$QPKG" && patch -p1 --forward --silent < "$pf" ); then
-            APPLIED=$((APPLIED+1))
-          else
-            warn "补丁未应用（可能已打过）：$(basename "$pf")"
-          fi
-        done
-        HIT2="$(count_patch_markers "$QPKG")"
-        if [ "$HIT2" = "6" ]; then
-          ok "通道补丁完成（$APPLIED 个文件，marker 6/6）"
-        else
-          err "补丁后 marker 只有 $HIT2/6 —— 可能上游版本不符"
-          die "补丁未完全生效。核对：pnpm ls @zaofan/dsh-qqbot 应为 $PINNED_QQBOT_VERSION"
-        fi
-      fi
+      err "有 $MISS 项上游修复不在位 —— 可能是上游回退了，或装的不是 $PINNED_QQBOT_VERSION"
+      err "先核对版本：pnpm ls @zaofan/dsh-qqbot（应为 $PINNED_QQBOT_VERSION）"
+      die "上游修复缺失，停下（不硬改 dist —— 改了下次升级也会丢）"
     fi
   fi
 fi
 
 # ══════════════════════════════════════════════════════════════════════════
+# ②c 把包装进 profile 的 bundle 列表# ══════════════════════════════════════════════════════════════════════════
 # ②c 把包装进 profile 的 bundle 列表
 #
 # 为什么单独一步（这是个真断点）：

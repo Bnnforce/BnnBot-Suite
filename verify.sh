@@ -67,24 +67,22 @@ if [ -d "$QDIR" ]; then
   QV="$(node -e "try{console.log(require('$QDIR/package.json').version)}catch(e){console.log('?')}" 2>/dev/null)"
   vok "通道 @zaofan/dsh-qqbot $QV"
 
-  # 通道补丁（上游 1.13.20 的 4 个真 bug；缺了卡片点击者身份会错）
-  PM="QQBotLocalPatch:face-type-image QQBotLocalPatch:session-cmd-context"
-  PM="$PM QQBotSecurityPatch:botplay-clicker-id QQBotSecurityPatch:safe-reply-fallback"
-  PM="$PM QQBotSecurityPatch:safe-reply-mention QQBotSecurityPatch:web-tool-error-silent"
-  HIT=0
-  for m in $PM; do
-    if grep -q "$m" "$QDIR/dist/features/botplay.js" "$QDIR/dist/features/face-tags.js" \
-         "$QDIR/dist/commands/session.js" "$QDIR/dist/transport/tool-presenter.js" 2>/dev/null; then
-      HIT=$((HIT+1))
-    fi
-  done
-  if [ "$HIT" = "6" ]; then
-    vok "通道补丁 6/6 marker 在位"
-  elif [ "$HIT" = "0" ]; then
-    vno "通道补丁未打（0/6）—— 卡片点击者身份会错，抽奖图鉴/小店/权限受影响"
-    warn "  修复：重跑 install.sh，或手动 patch -p1 < patches/qqbot-1.13.20/*.patch"
+  # 上游修复（1.13.25 起补丁已上游化；查功能，不查私有标记）
+  UPMISS=0
+  _upneed() {
+    if grep -q "$2" "$QDIR/$1" 2>/dev/null; then :; else
+      vno "上游修复缺失：$3（$1）"; UPMISS=$((UPMISS+1)); fi
+  }
+  _upneed 'dist/features/botplay.js' 'clickerId ?? triggererId' '卡片点击者身份'
+  _upneed 'dist/features/botplay.js' 'async safeReply(target, text, mention)' '卡片提示 @ 触发人'
+  _upneed 'dist/features/face-tags.js' '图片表情' '图片表情中性输出'
+  _upneed 'dist/commands/session.js' 'caps?.replyTarget' '会话命令上下文兜底'
+  _upneed 'dist/commands/session.js' 'FORK_TIMEOUT' '/bot-new 超时'
+  _upneed 'dist/transport/tool-presenter.js' "name === 'web_search' || name === 'web_fetch'" '联网工具错误静默'
+  if [ "$UPMISS" = "0" ]; then
+    vok "上游 6 项修复全部在位"
   else
-    vno "通道补丁状态不明（$HIT/6）—— 可能上半途打坏"
+    vwarn "  修复缺失项见上；先核对版本是否 $PINNED_QQBOT_VERSION"
   fi
 else
   vno "通道未安装"

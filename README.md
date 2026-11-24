@@ -48,12 +48,12 @@ BnnBot 不是一个包，是**三个仓库**配合跑起来的：
 把下面这行丢给 DSH（或其他能跑命令的 AI）：
 
 ```
-下载并读完 https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.0.5/INSTALL.md ，按它把 BnnBot 装好。装之前先问我要 QQ 机器人的 AppID 和 AppSecret；装完跑 verify.sh 验收，然后告诉我哪些验证过、哪些需要我自己做。
+下载并读完 https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.0.6/INSTALL.md ，按它把 BnnBot 装好。装之前先问我要 QQ 机器人的 AppID 和 AppSecret；装完跑 verify.sh 验收，然后告诉我哪些验证过、哪些需要我自己做。
 ```
 
-> 📌 **为什么用 `releases/download/v1.0.5/` 而不是 raw 链接**：
+> 📌 **为什么用 `releases/download/v1.0.6/` 而不是 raw 链接**：
 > 本机实测 `raw.githubusercontent.com` 和 `cdn.jsdelivr.net` 会连接重置（HTTP 000），
-> 而 `releases/download/v1.0.5/` 连测 3 次全部 200。国内网络优先用这个。
+> 而 `releases/download/v1.0.6/` 连测 3 次全部 200。国内网络优先用这个。
 
 | 文件 | 用途 |
 |---|---|
@@ -63,7 +63,6 @@ BnnBot 不是一个包，是**三个仓库**配合跑起来的：
 | [`PROMPT.txt`](PROMPT.txt) | 现成的一行指令（含 5 种变体） |
 | [`AGENT.md`](AGENT.md) | 给 AI 的严格执行规范（铁律 / 停止条件 / 回报格式） |
 | [`manifest.json`](manifest.json) | 机器可读的版本与检查项 |
-| [`patches/`](patches/qqbot-1.13.20/README.md) | 通道补丁（修上游 4 个 bug，AFL-3.0 派生，见其中的 LICENSE-NOTICE） |
 | [`checklist.md`](checklist.md) | 可勾选验收清单 |
 
 ### 脚本用法
@@ -120,7 +119,7 @@ bash verify.sh --workspace /sdcard/DSH
 | **一个 QQ 号** | 需要去 [QQ 开放平台](https://q.qq.com) 注册一个机器人应用，个人开发者可申请 |
 | **一台常开的机器** | 手机 / NAS / 小主机都行。**这台机器得一直开着**，关了她就不在线 |
 | **要花钱** | 模型调用按 token 计费。用便宜模型一天几毛到几块 |
-| **通道插件别乱升** | `@zaofan/dsh-qqbot` 钉在 `1.13.20`。上游 1.13.21+ 改了本套组补丁的目标文件，还把出站默认改成拒发 |
+| **通道插件别乱升** | `@zaofan/dsh-qqbot` 钉在 `1.13.25`。这个版本已合并本套组提交的 5 个修复（PR #88），是**第一个不需要本地补丁**的版本 |
 
 ---
 
@@ -133,8 +132,8 @@ bash verify.sh --workspace /sdcard/DSH
 | **DSH** | `0.2.2-rc.3` | 插件要求 `>= 0.2.0-rc.2`。安卓装 [DeepCode APK](https://github.com/kelai141/dsh-mobile-apk) |
 | **Node.js** | `>= 20`（实测 v24） | 必须 |
 | **pnpm** | `>= 9` | 必须（npm 装 link 依赖会出问题） |
-| `@zaofan/dsh-qqbot` | **`1.13.20`（钉死）** | ⚠️ 必须精确版本。上游只给下限没上限，升到 1.13.21+ 会踩补丁冲突与出站拒发 |
-| 通道补丁 | **4 个**（`patches/qqbot-1.13.20/`） | install.sh 自动打；修上游 4 个真 bug（含卡片点击者身份） |
+| `@zaofan/dsh-qqbot` | **`1.13.25`（钉死）** | ⚠️ 必须精确版本。上游只给下限没上限；1.13.25 起我们的修复已进上游，不再需要补丁 |
+| 上游修复校验 | **6 项**（查功能代码） | 1.13.25 已含我们的 5 个修复；install.sh / verify.sh 校验它们没被上游回退 |
 | `dsh-bnnbotbox` | `3.1.1` | |
 | `dsh-qqbot-bnn-custom` | `1.0.57` | |
 | `silk-wasm`（可选） | `3.7.1` | 只有发语音条要用 |

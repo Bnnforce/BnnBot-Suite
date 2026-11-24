@@ -1,7 +1,7 @@
 {
   "suite": "BnnBot-Suite",
   "title": "BnnBot 套组",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "updated": "2026-11-24",
   "description": "QQ 机器人「人格 + 记忆 + 玩法」的部署总入口",
   "license": "MIT",
@@ -46,36 +46,22 @@
       "npm": "@zaofan/dsh-qqbot",
       "repo": "https://github.com/zaofan-make/dsh-qqbot",
       "license": "AFL-3.0",
-      "verified": "1.13.20",
+      "verified": "1.13.25",
       "minVersion": "1.13.16",
       "install": {
         "kind": "pnpm",
         "cwd": "{PROFILE_DIR}",
-        "cmd": "pnpm add @zaofan/dsh-qqbot@1.13.20 --save-exact",
+        "cmd": "pnpm add @zaofan/dsh-qqbot@1.13.25 --save-exact",
         "note": "必须精确版本，不要用 ^"
       },
-      "pinnedVersion": "1.13.20",
+      "pinnedVersion": "1.13.25",
       "pinReason": "上游无上限版本机制；1.13.21+ 改了本套组 4 个补丁目标文件、把 outboundLastCtxFallback 默认改为拒发 ⇒ 多段回复只有第一段能发出去",
       "optOut": {
         "flag": "--latest-plugin",
         "note": "装最新版：自担风险，装完看 verify.sh 的 compat"
       },
-      "patches": {
-        "dir": "patches/qqbot-1.13.20/",
-        "count": 4,
-        "license": "AFL-3.0（上游派生，不在本套组 MIT 范围内）",
-        "markers": [
-          "QQBotLocalPatch:face-type-image",
-          "QQBotLocalPatch:session-cmd-context",
-          "QQBotSecurityPatch:botplay-clicker-id",
-          "QQBotSecurityPatch:safe-reply-fallback",
-          "QQBotSecurityPatch:safe-reply-mention",
-          "QQBotSecurityPatch:web-tool-error-silent"
-        ],
-        "rationale": "上游 1.13.20 有 4 个真 bug：卡片点击者身份缺失会让抽奖图鉴/小店/权限判断记错人（最严重）；图片表情被误判成「微笑」；会话命令在 web 上下文抛 TypeError；群内漏工具错误",
-        "autoAppliedBy": "install.sh（--no-patch 可跳过）",
-        "verifiedBy": "verify.sh（6/6 marker）"
-      }
+      "pinned": "1.13.25",
+      "note": "1.13.25 已合并我们提交的 5 个修复（PR #88）；本地 dist 补丁全部退役，install.sh 只校验功能代码。"
     },
     {
       "id": "bnnbotbox",
@@ -212,7 +198,7 @@
   ],
   "versionPinning": {
     "principle": "上游只给下限、没有上限；本套组按「验证过的精确版本」安装",
-    "channelPlugin": "1.13.20",
+    "channelPlugin": "1.13.25",
     "extensionPackDeclares": {
       "file": "qqbot-pack.json",
       "fields": [
@@ -232,8 +218,8 @@
   },
   "installSteps": [
     "① 检查环境",
-    "② 装通道 @zaofan/dsh-qqbot（钉死 1.13.20）",
-    "②b 打 4 个通道补丁",
+    "② 装通道 @zaofan/dsh-qqbot（钉死 1.13.25）",
+    "②b 校验上游修复（不再打补丁）",
     "②c 登记 profile bundles",
     "②d 装 QQ 群聊预设（preset: qqbot）",
     "③ 装插件 dsh-bnnbotbox",
@@ -261,5 +247,8 @@
     "--skip-ext",
     "--no-config",
     "--profile <name>"
-  ]
+  ],
+  "versions": {
+    "@zaofan/dsh-qqbot": "1.13.25"
+  }
 }

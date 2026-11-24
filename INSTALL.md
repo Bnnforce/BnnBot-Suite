@@ -8,7 +8,7 @@
 ## 怎么拿到这份文件（如果你还没拿到）
 
 ```
-https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.0.5/INSTALL.md
+https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.0.6/INSTALL.md
 ```
 
 ⚠️ **不要用 `raw.githubusercontent.com`** —— 本机实测该域名会连接重置（HTTP 000），
@@ -17,8 +17,8 @@ https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.0.5/INSTALL.md
 同目录还有可执行脚本：
 
 ```
-https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.0.5/install.sh
-https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.0.5/verify.sh
+https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.0.6/install.sh
+https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.0.6/verify.sh
 ```
 
 ---
@@ -97,34 +97,28 @@ echo "DSH_PROFILE_DIR=$DSH_PROFILE_DIR"
 
 ---
 
-## 第 1.5 步：通道补丁（脚本会自动做）
+## 第 1.5 步：上游修复校验（脚本会自动做）
 
-装完通道插件后，install.sh 会**自动打 4 个补丁**，修的是上游 `@zaofan/dsh-qqbot@1.13.20` 的真 bug：
+> **本版起没有补丁了。** 我们提交的 5 个修复已被上游合并（PR #88，进入 `1.13.25`），
+> 所以 `patches/` 目录已删除，`install.sh` 改成**校验这些修复还在不在**。
 
-| 补丁 | 修什么 | 不打会怎样 |
-|---|---|---|
-| botplay 点击者身份 | 卡片回调拿到正确的 `ctx.user.openid` | 🔴 抽奖图鉴记错人、小店归属错、权限判断失效 |
-| 图片表情 | `faceType=6` 输出「【图片表情】」而非猜成「微笑」 | 🟠 群友发贴纸她一律理解成在笑 |
-| 会话命令兜底 | `getScopePeer` 用 `caps.replyTarget` 兜底 + fork 超时 | 🟠 `/子会话` `/会话列表` 在 web 上下文抛错 |
-| 工具错误静默 | 群内不展示联网工具凭据/内部错误 | 🟡 群里可能漏原始报错 |
+校验的 6 项（查功能代码，不查我们自己的注释标记）：
 
-补丁文件在 `patches/qqbot-1.13.20/`（**只分发 diff，不分发整文件**）。
+| 修复 | 不修会怎样 |
+|---|---|
+| 卡片点击者身份兜底 | 🔴 抽奖图鉴记错人、小店归属错、权限判断失效 |
+| 卡片提示 @ 触发人 | 🟠 群里不知道提示在跟谁说话 |
+| 图片表情中性输出 | 🟠 群友发贴纸被当成「微笑」 |
+| 会话命令上下文兜底 | 🟠 `/子会话` `/会话列表` 在 web 上下文抛错 |
+| `/bot-new` 超时保护 | 🟠 宿主卡住时永远等不到回复 |
+| 联网工具错误静默 | 🟡 群里漏出凭据/内部报错 |
 
-> ⚠️ 许可：`@zaofan/dsh-qqbot` 是 **AFL-3.0**，这些 diff 属于其派生内容，
-> 受 AFL-3.0 约束，**不在本套组的 MIT 范围内**。详见 `patches/qqbot-1.13.20/LICENSE-NOTICE.md`。
+校验失败会**直接停下**并提示先核对版本 —— 不会去改 `dist`（改了下次升级也会丢，
+上游在 1.13.24 的 CHANGELOG 里专门写了这件事）。
 
-校验（6 个 marker 必须全在）：
-
-```bash
-cd "{PROFILE_DIR}/node_modules/@zaofan/dsh-qqbot"
-grep -rhoE "QQBot(Security|Local)Patch:[a-z-]+" dist/features/botplay.js \
-  dist/features/face-tags.js dist/commands/session.js dist/transport/tool-presenter.js | sort -u
-```
-
-跳过补丁：`install.sh --no-patch`（**不推荐**，功能会缺一块）。
+跳过校验：`install.sh --no-patch`。
 
 ---
-
 ## 第 2 步：一键装（推荐）
 
 如果本文件旁边的 `install.sh` 可用：
@@ -156,7 +150,7 @@ bash install.sh \
 
 ```bash
 cd "{PROFILE_DIR}"
-pnpm add @zaofan/dsh-qqbot@1.13.20
+pnpm add @zaofan/dsh-qqbot@1.13.25
 ```
 
 > ⚠️ **必须钉版本，不要装最新版。**
@@ -169,7 +163,7 @@ pnpm add @zaofan/dsh-qqbot@1.13.20
 > | 改了本套组打过补丁的 4 个 dist 文件 | 补丁冲突，相关功能**静默失效** |
 > | `outboundLastCtxFallback` 默认改为 `false`（拒发） | 扩展包 `outbound/60-split-bubbles` 里不传 target 的 `ctx.send()` **全部失败** ⇒ 多段回复只有第一段能发出去 |
 >
-> **为什么不靠 `^1.13.20`**：`^` 允许自动升到 `1.13.23`，上面两个坑都会踩。
+> **为什么不靠 `^1.13.25`**：`^` 允许自动升到更高的小版本，而上面两个坑（契约变化、默认值变化）都是随小版本悄悄来的。
 >
 > 想用最新版：自己承担风险，装完必须看 `verify.sh` 的 `compat` 结果。
 
@@ -177,14 +171,14 @@ pnpm add @zaofan/dsh-qqbot@1.13.20
 
 ```bash
 node -e "console.log(require('{PROFILE_DIR}/node_modules/@zaofan/dsh-qqbot/package.json').version)"
-# 期望输出：1.13.20（不是 >= 1.13.16，也不是 1.13.23）
+# 期望输出：1.13.25
 ```
 
 装成了别的版本怎么办（pnpm 按老范围解了）：
 
 ```bash
 cd "{PROFILE_DIR}"
-pnpm add @zaofan/dsh-qqbot@1.13.20 --save-exact
+pnpm add @zaofan/dsh-qqbot@1.13.25 --save-exact
 ```
 
 ### 3.2 装插件 `dsh-bnnbotbox`
@@ -387,7 +381,7 @@ cat "{DATA_ROOT}/.qqbot-extensions/data/workspace-dirs.json"
 | DSH | `0.2.2-rc.3` |
 | Node.js | `24.18.0`（要求 ≥ 24.9.0） |
 | pnpm | `10.12.1`（要求 ≥ 9） |
-| `@zaofan/dsh-qqbot` | `1.13.20` |
+| `@zaofan/dsh-qqbot` | `1.13.25` |
 | `dsh-bnnbotbox` | `3.1.1` |
 | `dsh-qqbot-bnn-custom` | `1.0.57` |
 
