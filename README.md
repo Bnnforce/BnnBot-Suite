@@ -48,12 +48,12 @@ BnnBot 不是一个包，是**三个仓库**配合跑起来的：
 把下面这行丢给 DSH（或其他能跑命令的 AI）：
 
 ```
-下载并读完 https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.0.8/INSTALL.md ，按它把 BnnBot 装好。装之前先问我要 QQ 机器人的 AppID 和 AppSecret；装完跑 verify.sh 验收，然后告诉我哪些验证过、哪些需要我自己做。
+下载并读完 https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.0.9/INSTALL.md ，按它把 BnnBot 装好。装之前先问我要 QQ 机器人的 AppID 和 AppSecret；装完跑 verify.sh 验收，然后告诉我哪些验证过、哪些需要我自己做。
 ```
 
-> 📌 **为什么用 `releases/download/v1.0.8/` 而不是 raw 链接**：
+> 📌 **为什么用 `releases/download/v1.0.9/` 而不是 raw 链接**：
 > 本机实测 `raw.githubusercontent.com` 和 `cdn.jsdelivr.net` 会连接重置（HTTP 000），
-> 而 `releases/download/v1.0.8/` 连测 3 次全部 200。国内网络优先用这个。
+> 而 `releases/download/v1.0.9/` 连测 3 次全部 200。国内网络优先用这个。
 
 | 文件 | 用途 |
 |---|---|

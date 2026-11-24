@@ -1,7 +1,7 @@
 {
   "suite": "BnnBot-Suite",
   "title": "BnnBot 套组",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "updated": "2026-11-24",
   "description": "QQ 机器人「人格 + 记忆 + 玩法」的部署总入口",
   "license": "MIT",
