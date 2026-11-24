@@ -109,6 +109,15 @@
       "optionalDeps": {
         "silk-wasm": "^3.7.1"
       }
+    },
+    {
+      "id": "memewiki",
+      "name": "dsh-memewiki（梗指南）",
+      "version": "0.1.20+",
+      "role": "网络梗查询（6792 条词库 + search_meme_wiki 工具）",
+      "optional": true,
+      "note": "不装也能跑，但她遇到网络梗只会说不知道。扩展包的 memewiki-adapter 只做限流和权限门禁，不提供词库。",
+      "division": "梗指南=网络梗；人格/黑话本/<gid>/黑话.md=群内梗"
     }
   ],
   "paths": {
@@ -223,7 +232,7 @@
     "②c 登记 profile bundles",
     "②d 装 QQ 群聊预设（preset: qqbot）",
     "③ 装插件 dsh-bnnbotbox",
-    "④ 放扩展包 bnn-custom",
+    "③b 装梗指南（可选）→ ④ 放扩展包 bnn-custom",
     "⑤ 生成配置片段",
     "⑥ 跑验收"
   ],

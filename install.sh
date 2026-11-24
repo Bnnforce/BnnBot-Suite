@@ -21,12 +21,14 @@
 #   BNN_OWNER_OPENID  主人的 QQ openid（决定「仅主人」类功能对谁开放；不填 = 所有主人校验放行）
 #   BNN_C2C_MODE      私聊访问模式：open / allowlist / disabled（默认 open）
 #   BNN_GROUP_MODE    群聊访问模式：open / allowlist / disabled（默认 open）
+#   BNN_SKIP_MEME     1 = 不装梗指南插件（默认装，没有它就不会查网络梗）
 #
 # 它做什么：
 #   ① 检查环境（node/pnpm/dsh）
 #   ② 装通道 @zaofan/dsh-qqbot（★ 精确锁定到适配版本）
 #   ②b 校验上游修复是否在位（1.13.25 起不再需要打补丁）
 #   ③ 装插件 dsh-bnnbotbox（clone + pnpm install + link）
+#   ③b 装梗指南 dsh-memewiki（可选，装了才会查网络梗）
 #   ④ 放扩展包 bnn-custom（可选）
 #   ⑤ 生成配置片段（不覆盖已有配置，只追加）
 #   ⑥ 跑验收
@@ -134,6 +136,7 @@ while [ $# -gt 0 ]; do
     --owner-openid) OWNER_OPENID="${2:-}"; shift 2 ;;
     --c2c-mode)     C2C_MODE="${2:-}"; shift 2 ;;
     --group-mode)   GROUP_MODE="${2:-}"; shift 2 ;;
+    --skip-meme)    BNN_SKIP_MEME=1; shift ;;
     --plugin-version) PINNED_QQBOT_VERSION="$2"; shift 2 ;;
     --no-config)  BNN_NO_CONFIG=1; shift ;;
     *) shift ;;
@@ -424,6 +427,42 @@ if [ -f "$PRESET_DIR/package.json" ]; then
     already) ok "@local/dsh-qqbot-suite 已在 profile bundles 里" ;;
     *)       warn "登记预设 bundles 失败" ;;
   esac
+fi
+
+# ══════════════════════════════════════════════════════════════════════════
+# ③b 装梗指南 dsh-memewiki（可选但强烈建议）
+#
+# 为什么要有这一步：
+#   扩展包 hooks/memewiki-adapter.mjs 只是「限流 + 权限门禁」，
+#   真正提供 6792 条梗库和 search_meme_wiki 工具的是 dsh-memewiki。
+#   不装它 → 她遇到网络梗只会说"不知道"，而适配层也不会报错（静默降级）。
+#
+# 分工：
+#   · 梗指南（本步）= 网络梗（yyds / 666 / 抽象 / 破防…）
+#   · 我们的黑话本 = 群内梗（每群一个 人格/黑话本/<gid前8位>/黑话.md）
+# ══════════════════════════════════════════════════════════════════════════
+if [ "${BNN_SKIP_MEME:-0}" = "1" ]; then
+  warn "跳过梗指南（--skip-meme）—— 她遇到网络梗只会说不知道"
+else
+  info "③b 装梗指南 dsh-memewiki …"
+  MEME_DIR="$PROFILE_DIR/node_modules/dsh-memewiki"
+  if [ -d "$MEME_DIR" ]; then
+    MEME_V="$(node -e "try{console.log(require('$MEME_DIR/package.json').version)}catch(e){console.log('?')}" 2>/dev/null)"
+    ok "梗指南已装：$MEME_V"
+  else
+    ( cd "$PROFILE_DIR" && pnpm add dsh-memewiki ) \
+      && ok "梗指南已装" \
+      || warn "梗指南安装失败（不影响主体功能，她只是不会查网络梗）"
+  fi
+
+  # 登记进 bundles（否则装了也不加载）
+  if [ -d "$MEME_DIR" ]; then
+    case "$(add_bundle dsh-memewiki)" in
+      added)   ok "已登记 dsh-memewiki 到 profile bundles" ;;
+      already) ok "dsh-memewiki 已在 profile bundles 里" ;;
+      *)       warn "登记梗指南 bundles 失败" ;;
+    esac
+  fi
 fi
 
 # ══════════════════════════════════════════════════════════════════════════

@@ -62,6 +62,14 @@ command -v dsh  >/dev/null 2>&1 && vok "dsh $(dsh --version 2>/dev/null | head -
 
 # ── ② 组件 ────────────────────────────────────────────────
 sec "② 组件"
+# 梗指南（可选但强烈建议）：不装她就不会查网络梗
+MEME_DIR="$PROFILE_DIR/node_modules/dsh-memewiki"
+if [ -d "$MEME_DIR" ]; then
+  MEME_V="$(node -e "try{console.log(require('$MEME_DIR/package.json').version)}catch(e){console.log('?')}" 2>/dev/null)"
+  vok "梗指南 dsh-memewiki $MEME_V"
+else
+  vwarn "没装梗指南 —— 她遇到网络梗只会说不知道（装法：pnpm add dsh-memewiki）"
+fi
 QDIR="$PROFILE_DIR/node_modules/@zaofan/dsh-qqbot"
 if [ -d "$QDIR" ]; then
   QV="$(node -e "try{console.log(require('$QDIR/package.json').version)}catch(e){console.log('?')}" 2>/dev/null)"
