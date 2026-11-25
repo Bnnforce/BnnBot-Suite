@@ -70,7 +70,7 @@
       "recommended": true,
       "repo": "https://github.com/Bnnforce/dsh-bnnbotbox",
       "license": "MIT",
-      "verified": "3.1.1",
+      "verified": "3.4.0",
       "install": {
         "kind": "link",
         "cmd": "pnpm add \"link:{SRC_DIR}/dsh-bnnbotbox\""
@@ -100,7 +100,7 @@
       "required": false,
       "repo": "https://github.com/Bnnforce/dsh-qqbot-bnn-custom",
       "license": "MIT",
-      "verified": "1.0.57",
+      "verified": "1.0.69",
       "install": {
         "kind": "copy",
         "to": "{DATA_ROOT}/extension-packs/bnn-custom"
