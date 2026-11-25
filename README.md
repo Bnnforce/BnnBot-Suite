@@ -43,6 +43,21 @@ BnnBot 不是一个包，是**三个仓库**配合跑起来的：
 
 ---
 
+## 装完长什么样
+
+<p align="center">
+  <img src="docs/screenshots/03-chat.jpg" width="30%" alt="群聊对话：@她之后的自然回复">
+  <img src="docs/screenshots/04-status.jpg" width="30%" alt="~ 状态：她的八维情绪">
+</p>
+<p align="center">
+  <img src="docs/screenshots/02-play.jpg" width="26%" alt="~ 玩法：积分与工具卡片">
+  <img src="docs/screenshots/01-diary.jpg" width="30%" alt="~ 日记：每天 22:30 自动写">
+</p>
+
+> 左上：自然对话 ｜ 右上：`/状态` 看情绪 ｜ 左下：`/玩法` 卡片 ｜ 右下：`/日记`
+
+---
+
 ## ⚡ 想一句话装完
 
 把下面这行丢给 DSH（或其他能跑命令的 AI）：
