@@ -1,20 +1,20 @@
-把 https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.3.1/INSTALL.md 下载并读完，按它把 BnnBot 装好。装之前先问我要 QQ 机器人的 AppID 和 AppSecret；装完跑 verify.sh 验收，然后告诉我哪些验证过、哪些需要我自己做。
+把 https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.3.2/INSTALL.md 下载并读完，按它把 BnnBot 装好。装之前先问我要 QQ 机器人的 AppID 和 AppSecret；装完跑 verify.sh 验收，然后告诉我哪些验证过、哪些需要我自己做。
 
 ---
 备用文案（任选一条）
 
 【最短】
-下载并读 https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.3.1/INSTALL.md ，照它装 BnnBot。
+下载并读 https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.3.2/INSTALL.md ，照它装 BnnBot。
 
 【全自动，少问】
-下载 https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.3.1/install.sh 和同目录的 INSTALL.md，
+下载 https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.3.2/install.sh 和同目录的 INSTALL.md，
 按 INSTALL.md 执行；路径自己定（工作区用 ~/bnnbot），只在要 appId/appSecret 时问我。
 
 【只装人格不装玩法】
 同上，但跳过扩展包（只装 dsh-bnnbotbox）。
 
 【只检查不装】
-下载 https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.3.1/verify.sh ，
+下载 https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.3.2/verify.sh ，
 对我的现有安装做验收（参数见 INSTALL.md 第 5 步），报告结果，不要装或改任何东西。
 
 【本地文件版】（拉不到时）
@@ -27,7 +27,7 @@ https://raw.githubusercontent.com/Bnnforce/BnnBot-Suite/main/INSTALL.md
 ---
 分发地址说明
   首选（实测稳定 3/3）：
-    https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.3.1/INSTALL.md
+    https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.3.2/INSTALL.md
   次选：
     https://github.com/Bnnforce/BnnBot-Suite/raw/main/INSTALL.md   （302 后可能被重置）
   不推荐：
