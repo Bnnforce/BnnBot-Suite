@@ -1,0 +1,149 @@
+name: CI
+
+# 本仓库是部署总入口（文档 + 脚本 + manifest.json），没有可编译的代码，
+# 所以 CI 只守两条底线：
+#   1) manifest.json 是合法 JSON，且组件版本号格式正确
+#   2) 开源上架必需的文件都在
+# 不装依赖、不联网、不执行 install.sh。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  manifest:
+    name: manifest.json 校验
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 校验 manifest.json
+        shell: bash
+        run: |
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+
+            const raw = readFileSync("manifest.json", "utf8");
+            let m;
+            try {
+              m = JSON.parse(raw);
+            } catch (err) {
+              console.error("::error file=manifest.json::不是合法 JSON：" + err.message);
+              process.exit(1);
+            }
+            console.log("✅ manifest.json 是合法 JSON");
+
+            // 允许可选的前导 v、SemVer 三段式、预发布后缀，以及本仓库用来表示
+            // 「该版本及以上」的尾随 "+"（如 memewiki 的 "0.1.20+"）。
+            const VERSION = /^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?\+?$/;
+
+            const problems = [];
+            const checkVersion = (value, label) => {
+              if (typeof value !== "string" || !VERSION.test(value)) {
+                problems.push(`${label} 版本格式不正确：${JSON.stringify(value)}（期望形如 1.0.21 / 0.2.2-rc.3 / 0.1.20+）`);
+              }
+            };
+
+            // 顶层字段
+            for (const key of ["suite", "title", "version", "license"]) {
+              if (typeof m[key] !== "string" || m[key].trim() === "") {
+                problems.push(`缺少必需字符串字段：${key}`);
+              }
+            }
+            checkVersion(m.version, "manifest.version");
+
+            // 组件
+            if (!Array.isArray(m.components) || m.components.length === 0) {
+              problems.push("components 必须是非空数组");
+            } else {
+              const seen = new Set();
+              m.components.forEach((c, i) => {
+                const at = `components[${i}]${c && c.id ? `(${c.id})` : ""}`;
+                if (!c || typeof c !== "object") {
+                  problems.push(`${at} 不是对象`);
+                  return;
+                }
+                if (typeof c.id !== "string" || c.id.trim() === "") {
+                  problems.push(`${at} 缺少 id`);
+                } else if (seen.has(c.id)) {
+                  problems.push(`${at} id 重复：${c.id}`);
+                } else {
+                  seen.add(c.id);
+                }
+                if (c.verified !== undefined) checkVersion(c.verified, `${at}.verified`);
+                if (c.minVersion !== undefined) checkVersion(c.minVersion, `${at}.minVersion`);
+                if (c.pinned !== undefined) checkVersion(c.pinned, `${at}.pinned`);
+                if (c.license !== undefined && (typeof c.license !== "string" || c.license.trim() === "")) {
+                  problems.push(`${at}.license 存在但不是非空字符串`);
+                }
+              });
+              const ids = new Set(m.components.map((c) => c && c.id));
+              for (const req of ["dsh", "qqbot-channel"]) {
+                if (!ids.has(req)) problems.push(`components 里缺少必需组件：${req}`);
+              }
+            }
+
+            // checks 条目
+            if (m.checks !== undefined && !Array.isArray(m.checks)) {
+              problems.push("checks 必须是数组");
+            }
+
+            if (problems.length > 0) {
+              for (const p of problems) console.error("::error file=manifest.json::" + p);
+              console.error(`❌ manifest.json 校验失败，共 ${problems.length} 个问题`);
+              process.exit(1);
+            }
+            console.log(`✅ 版本格式与组件结构正常（${m.components.length} 个组件）`);
+          '
+
+  files:
+    name: 必需文件检查
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 检查开源上架必需文件
+        shell: bash
+        run: |
+          set -uo pipefail
+          required="LICENSE SECURITY.md CONTRIBUTING.md CHANGELOG.md README.md install.sh verify.sh"
+          missing=0
+          for f in $required; do
+            if [ -f "$f" ]; then
+              size=$(wc -c < "$f" | tr -d ' ')
+              if [ "$size" -eq 0 ]; then
+                echo "::error file=$f::$f 是空文件"
+                missing=1
+              else
+                echo "✅ $f（${size} 字节）"
+              fi
+            else
+              echo "::error::$f 缺失"
+              missing=1
+            fi
+          done
+
+          # 脚本还必须可执行，否则文档里写的 bash install.sh 之外的 ./install.sh 会失败
+          for f in install.sh verify.sh; do
+            if [ -f "$f" ] && [ ! -x "$f" ]; then
+              echo "::warning file=$f::$f 没有可执行位（用 bash $f 仍可运行）"
+            fi
+          done
+
+          if [ "$missing" -ne 0 ]; then
+            echo "❌ 必需文件检查未通过"
+            exit 1
+          fi
+          echo "✅ 必需文件齐全"
