@@ -8,7 +8,7 @@
 ## 怎么拿到这份文件（如果你还没拿到）
 
 ```
-https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.3.2/INSTALL.md
+https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.3.3/INSTALL.md
 ```
 
 ⚠️ **不要用 `raw.githubusercontent.com`** —— 本机实测该域名会连接重置（HTTP 000），
@@ -17,8 +17,8 @@ https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.3.2/INSTALL.md
 同目录还有可执行脚本：
 
 ```
-https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.3.2/install.sh
-https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.3.2/verify.sh
+https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.3.3/install.sh
+https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.3.3/verify.sh
 ```
 
 ---
