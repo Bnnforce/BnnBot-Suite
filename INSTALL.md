@@ -8,7 +8,7 @@
 ## 怎么拿到这份文件（如果你还没拿到）
 
 ```
-https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.4.1/INSTALL.md
+https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.5.0/INSTALL.md
 ```
 
 ⚠️ **不要用 `raw.githubusercontent.com`** —— 本机实测该域名会连接重置（HTTP 000），
@@ -17,8 +17,8 @@ https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.4.1/INSTALL.md
 同目录还有可执行脚本：
 
 ```
-https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.4.1/install.sh
-https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.4.1/verify.sh
+https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.5.0/install.sh
+https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.5.0/verify.sh
 ```
 
 ---
@@ -206,7 +206,7 @@ pnpm add @zaofan/dsh-qqbot@1.13.27
 
 ```bash
 node -e "console.log(require('{PROFILE_DIR}/node_modules/@zaofan/dsh-qqbot/package.json').version)"
-# 期望输出：1.13.25
+# 期望输出：1.13.29
 ```
 
 装成了别的版本怎么办（pnpm 按老范围解了）：
@@ -266,21 +266,87 @@ node scripts/doctor.mjs --fix     # 期望 ✅ 必需目录齐全
 node scripts/sync-botplay.mjs     # 同步 13 张卡片的运行时副本
 ```
 
-### 3.4 （跳过）自治调度器 `dsh-bnnrealme`
+### 3.4 装自治调度器 `dsh-bnnrealme`（可选，有风险）
 
-> ⚠️ **默认不装。** 这个组件风险较高，装在附录 E，看懂了再装。
+> ⚠️ **这一步可以跳过。** 核心功能不依赖它，自我系统、群聊理解都在上面装好的东西里。
 
-**核心功能不依赖它。** 自我系统、群聊理解都在上面装好的插件里。
+#### 它能做什么
 
-**它有这些风险：**
+- 每天自检（跑全量检查 + 上线前检查 + 发版检查）
+- 上游 QQ 通道有新版本时，小的修复版自动升级
+- 改坏代码后自己重启并恢复
+- 每天写一份日报
 
-| 风险 | 说明 |
-|---|---|
-| 需要 root | 守护进程用 `su` 重启应用 |
-| 会重启 DSH | 改坏了自己拉起，也可能反复失败 |
-| 常驻后台 | 出问题难排查 |
+#### 它不会做什么
 
-**想装的话看附录 E。**
+- **不会自动升级 DSH 本体**（那是宿主，改坏了整个系统起不来，需要人工处理）
+- 不会自动升级 APK
+
+#### 风险（装之前先看）
+
+| 风险 | 具体 | 怎么缓解 |
+|---|---|---|
+| **需要 root** | 守护脚本用 `su` 重启应用 | 不装就不用给 root |
+| **会重启应用** | 触发重启时，正在聊的对话会断 | 重启前必过三道关 + 备份 |
+| **常驻后台** | 守护进程一直在跑，耗一点电 | `pkill -f guard.sh` 可随时停 |
+| **可能反复失败** | 改坏了又重启，可能来回折腾 | 连续失败 3 次自动停止，等你处理 |
+
+#### 装法
+
+```bash
+cd {SRC_DIR}
+git clone --depth 1 https://github.com/Bnnforce/dsh-bnnrealme.git
+
+cd "{PROFILE_DIR}"
+pnpm add "link:{SRC_DIR}/dsh-bnnrealme"
+```
+
+#### 装完先做这三个检查
+
+```bash
+# ① 守护脚本语法（必须通过）
+bash -n {SRC_DIR}/dsh-bnnrealme/scripts/guard.sh
+
+# ② root 可用
+su -c 'id'
+
+# ③ 确认有备份
+ls -la .backup/
+```
+
+#### 启动守护（想让它真的自己运转时）
+
+```bash
+su -c "setsid bash {SRC_DIR}/dsh-bnnrealme/scripts/guard.sh &"
+```
+
+> 用 `setsid` 让它脱离应用进程树，这样应用被杀时它能活着并恢复。
+
+#### 三个命令
+
+- `/自治状态` — 看当前状态
+- `/自治日报` — 看它写了什么
+- `/自治回滚` — 出问题退回
+
+#### 出问题怎么办
+
+```bash
+# 停守护
+pkill -f guard.sh
+
+# 手动恢复（从最近备份）
+cd {SRC_DIR}/dsh-bnnrealme && node lib/index.js --rollback
+```
+
+#### 卸载
+
+```bash
+cd "{PROFILE_DIR}"
+pnpm remove dsh-bnnrealme
+pkill -f guard.sh
+```
+
+> 详细的踩坑记录和进阶用法看附录 E。
 
 ### 3.5 写配置
 
@@ -432,9 +498,9 @@ cat "{DATA_ROOT}/.qqbot-extensions/data/workspace-dirs.json"
 | DSH | `0.2.2-rc.3` |
 | Node.js | `24.18.0`（要求 ≥ 24.9.0） |
 | pnpm | `10.12.1`（要求 ≥ 9） |
-| `@zaofan/dsh-qqbot` | `1.13.25` |
-| `dsh-bnnbotbox` | `3.1.1` |
-| `dsh-qqbot-bnn-custom` | `1.0.57` |
+| `@zaofan/dsh-qqbot` | `1.13.29` |
+| `dsh-bnnbotbox` | `3.6.1` |
+| `dsh-qqbot-bnn-custom` | `1.4.0` |
 
 ---
 

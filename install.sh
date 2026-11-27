@@ -14,6 +14,7 @@
 #   QQBOT_APP_ID      QQ 机器人 AppID
 #   QQBOT_APP_SECRET  QQ 机器人 AppSecret
 #   BNN_SKIP_EXT      1 = 不装玩法扩展包
+#   BNN_WITH_AUTOPILOT 1 = 装自治调度器 dsh-bnnrealme（需要 root，有风险，默认不装）
 #   BNN_NO_CONFIG     1 = 只装不写配置
 #   QQBOT_PLUGIN_VERSION  通道插件版本（默认 = 本套组适配过的版本，见下方常量）
 #   BNN_LATEST_PLUGIN 1 = 装通道插件的最新版（不推荐：上游可能改契约/默认值）
@@ -113,7 +114,7 @@ add_bundle() {
   ' "$PROFILE_DIR/package.json" "$pkg"
 }
 
-PINNED_QQBOT_VERSION="${QQBOT_PLUGIN_VERSION:-1.13.25}"
+PINNED_QQBOT_VERSION="${QQBOT_PLUGIN_VERSION:-1.13.29}"
 LATEST_PLUGIN="${BNN_LATEST_PLUGIN:-0}"
 
 YES=0
@@ -137,6 +138,7 @@ while [ $# -gt 0 ]; do
     --c2c-mode)     C2C_MODE="${2:-}"; shift 2 ;;
     --group-mode)   GROUP_MODE="${2:-}"; shift 2 ;;
     --skip-meme)    BNN_SKIP_MEME=1; shift ;;
+    --with-autopilot) BNN_WITH_AUTOPILOT=1; shift ;;
     --plugin-version) PINNED_QQBOT_VERSION="$2"; shift 2 ;;
     --no-config)  BNN_NO_CONFIG=1; shift ;;
     *) shift ;;
@@ -498,6 +500,42 @@ if [ -d "$EXT_SRC/.git" ] && [ -f "$EXT_SRC/qqbot-pack.json" ]; then
   ( cd "$EXT_DST" && node scripts/check-syntax.mjs 2>&1 | tail -1 )
   ( cd "$EXT_DST" && node scripts/doctor.mjs --fix 2>&1 | tail -3 )
   ( cd "$EXT_DST" && node scripts/sync-botplay.mjs 2>&1 | tail -1 )
+fi
+
+# ══════════════════════════════════════════════════════════════════════════
+# ④b 自治调度器 dsh-bnnrealme（可选，有风险，默认不装）
+# ══════════════════════════════════════════════════════════════════════════
+if [ "${BNN_WITH_AUTOPILOT:-0}" = "1" ]; then
+  hr
+  warn "装自治调度器 dsh-bnnrealme（你显式要求了 --with-autopilot）"
+  warn "风险：需要 root、会重启应用、守护常驻后台"
+  REALME_SRC="$SRC_DIR/dsh-bnnrealme"
+  if [ -d "$REALME_SRC/.git" ]; then
+    info "已存在 $REALME_SRC，跳过 clone"
+  else
+    git_clone_retry https://github.com/Bnnforce/dsh-bnnrealme.git "$REALME_SRC" \
+      || die "clone dsh-bnnrealme 失败（仓库是否已公开？）"
+  fi
+
+  # 装之前先验 guard.sh 语法
+  if bash -n "$REALME_SRC/scripts/guard.sh" 2>/dev/null; then
+    ok "guard.sh 语法正确"
+  else
+    die "guard.sh 语法错误，不敢装"
+  fi
+
+  # 挂进 profile（link 方式）
+  if pnpm add "link:$REALME_SRC" --dir "$PROFILE_DIR" >/dev/null 2>&1; then
+    ok "dsh-bnnrealme 已挂进 profile"
+  else
+    warn "挂载失败，手动：cd $PROFILE_DIR && pnpm add link:$REALME_SRC"
+  fi
+
+  warn "守护未启动。想让它自己运转："
+  warn "  su -c \"setsid bash $REALME_SRC/scripts/guard.sh &\""
+  warn "出问题：pkill -f guard.sh"
+else
+  info "④b 跳过自治调度器（默认不装；想装加 --with-autopilot）"
 fi
 
 # ══════════════════════════════════════════════════════════════════════════

@@ -46,7 +46,7 @@
 |---|---|---|---|---|
 | **DeepSeek Harness**（DSH） | 宿主运行时 | 0.2.2-rc.3 | **MIT** | <https://github.com/deepseek-ai/deepseek-harness> |
 | **DeepCode**（DSH 安卓壳） | Android 容器（可选，仅手机安装用） | — | **MIT** | <https://github.com/kelai141/dsh-mobile-apk> |
-| **`@zaofan/dsh-qqbot`** | QQ 通道插件 | **1.13.25（钉死）** | **AFL-3.0** | <https://github.com/zaofan-make/dsh-qqbot> |
+| **`@zaofan/dsh-qqbot`** | QQ 通道插件 | **1.13.29（钉死）** | **AFL-3.0** | <https://github.com/zaofan-make/dsh-qqbot> |
 | **`dsh-memewiki`**（梗指南） | 网络梗查询词库（可选） | 0.1.20+ | **MIT** | 由 `install.sh` 经 pnpm 安装 |
 
 > ⚠️ **AFL-3.0 是本节里唯一的 copyleft 许可。** `@zaofan/dsh-qqbot` 是独立进程/独立包，

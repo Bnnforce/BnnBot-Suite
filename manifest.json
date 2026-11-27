@@ -1,8 +1,8 @@
 {
   "suite": "BnnBot-Suite",
   "title": "BnnBot 套组",
-  "version": "1.4.1",
-  "updated": "2026-11-26",
+  "version": "1.5.0",
+  "updated": "2026-11-27",
   "description": "QQ 机器人「人格 + 记忆 + 玩法」的部署总入口",
   "license": "MIT",
   "entrypoints": {
@@ -51,16 +51,16 @@
       "install": {
         "kind": "pnpm",
         "cwd": "{PROFILE_DIR}",
-        "cmd": "pnpm add @zaofan/dsh-qqbot@1.13.25 --save-exact",
+        "cmd": "pnpm add @zaofan/dsh-qqbot@1.13.29 --save-exact",
         "note": "必须精确版本，不要用 ^"
       },
-      "pinnedVersion": "1.13.25",
+      "pinnedVersion": "1.13.29",
       "pinReason": "上游无上限版本机制；1.13.21+ 改了本套组 4 个补丁目标文件、把 outboundLastCtxFallback 默认改为拒发 ⇒ 多段回复只有第一段能发出去",
       "optOut": {
         "flag": "--latest-plugin",
         "note": "装最新版：自担风险，装完看 verify.sh 的 compat"
       },
-      "pinned": "1.13.25",
+      "pinned": "1.13.29",
       "note": "1.13.25 已合并我们提交的 5 个修复（PR #88）；本地 dist 补丁全部退役，install.sh 只校验功能代码。"
     },
     {
@@ -121,12 +121,73 @@
     },
     {
       "id": "bnnrealme",
+      "label": "自治调度器",
       "name": "dsh-bnnrealme",
-      "verified": "0.1.0",
+      "role": "自检 / 上游升级 / 重启守护 / 日报",
+      "required": false,
+      "recommended": false,
       "optional": true,
-      "note": "自治调度器：自检/上游升级/重启守护/日报（进阶，默认不装）",
       "defaultInstall": false,
-      "risk": "需要 root；守护进程会重启应用。有风险，不建议新手装"
+      "repo": "https://github.com/Bnnforce/dsh-bnnrealme",
+      "license": "MIT",
+      "verified": "0.2.0",
+      "install": {
+        "kind": "link",
+        "cmd": "pnpm add \"link:{SRC_DIR}/dsh-bnnrealme\"",
+        "note": "用 link 方式，改代码立即生效"
+      },
+      "preInstall": [
+        "git clone --depth 1 https://github.com/Bnnforce/dsh-bnnrealme.git"
+      ],
+      "capabilities": [
+        "每天自检（全量检查 + preflight + 发版检查）",
+        "上游 qqbot 插件 patch 级自动升级（minor/major 只报告）",
+        "改坏了自己重启并恢复",
+        "每天写日报"
+      ],
+      "notCapable": [
+        "不自动升级 DSH 运行时（宿主本体，需人工处理）",
+        "不自动升级 APK 壳（Android 系统限制）"
+      ],
+      "risk": {
+        "level": "medium",
+        "summary": "需要 root；守护进程会重启应用；出问题难排查",
+        "details": [
+          {
+            "item": "需要 root",
+            "detail": "守护脚本用 su -c am force-stop / am start 重启应用",
+            "mitigate": "不装就不用给 root；APK 自带看门狗已能兜底"
+          },
+          {
+            "item": "会重启应用",
+            "detail": "改完代码触发重启时，正在进行的对话会中断",
+            "mitigate": "重启前必过三道关（语法/加载/测试）+ tar cf 备份"
+          },
+          {
+            "item": "守护进程常驻",
+            "detail": "用 setsid 脱离进程树常驻后台，占一点电量",
+            "mitigate": "pkill -f guard.sh 可随时停"
+          },
+          {
+            "item": "可能反复失败",
+            "detail": "如果改坏了又重启，可能陷入「起不来→恢复→再起不来」",
+            "mitigate": "连续失败 3 次自动停止，留告警文件等人工处理"
+          }
+        ]
+      },
+      "preflightChecks": [
+        "bash -n scripts/guard.sh 语法正确",
+        "su -c 'id' 确认 root 可用",
+        "确认 .backup/ 里有完整备份"
+      ],
+      "troubleshooting": {
+        "stopDaemon": "pkill -f guard.sh",
+        "rollback": "node lib/index.js --rollback",
+        "manualRestore": "从 .backup/upgrade-test/ 或最新备份 tar xf 恢复",
+        "uninstall": "pnpm remove dsh-bnnrealme && pkill -f guard.sh"
+      },
+      "independence": "核心功能（自我系统、群聊理解）在 bnnbotbox 和 bnn-custom 里，不装 bnnrealme 完全不影响",
+      "doc": "INSTALL.md 附录 E"
     }
   ],
   "paths": {
@@ -196,6 +257,13 @@
       "desc": "dsh-bnnbotbox 有 17 个文件没有 TS 源",
       "detail": "lib/memory/(11) + lib/persona/r4/(4) + lib/shared/(2) 只有 .js",
       "effect": "不影响使用；.js 带完整注释可直接改"
+    },
+    {
+      "id": "realme-risk",
+      "desc": "自治调度器（bnnrealme）是可选组件，有风险",
+      "detail": "需要 root、会重启应用、守护常驻。默认不装。",
+      "effect": "不装完全不影响核心功能",
+      "notABug": true
     }
   ],
   "stopConditions": [
@@ -216,7 +284,7 @@
   ],
   "versionPinning": {
     "principle": "上游只给下限、没有上限；本套组按「验证过的精确版本」安装",
-    "channelPlugin": "1.13.25",
+    "channelPlugin": "1.13.29",
     "extensionPackDeclares": {
       "file": "qqbot-pack.json",
       "fields": [
@@ -236,14 +304,15 @@
   },
   "installSteps": [
     "① 检查环境",
-    "② 装通道 @zaofan/dsh-qqbot（钉死 1.13.25）",
+    "② 装通道 @zaofan/dsh-qqbot（钉死 1.13.29）",
     "②b 校验上游修复（不再打补丁）",
     "②c 登记 profile bundles",
     "②d 装 QQ 群聊预设（preset: qqbot）",
     "③ 装插件 dsh-bnnbotbox",
     "③b 装梗指南（可选）→ ④ 放扩展包 bnn-custom",
     "⑤ 生成配置片段",
-    "⑥ 跑验收"
+    "⑥ 跑验收",
+    "⑦ 装自治调度器 dsh-bnnrealme（可选，有风险，默认跳过）"
   ],
   "knownGaps": [
     {
@@ -267,8 +336,8 @@
     "--profile <name>"
   ],
   "versions": {
-    "@zaofan/dsh-qqbot": "1.13.25"
+    "@zaofan/dsh-qqbot": "1.13.29"
   },
   "cleanInstallVerified": "2026-11-24：headless 干净环境从零装通，verify.sh 14 通过 / 0 失败",
-  "channelPlugin": "1.13.25"
+  "channelPlugin": "1.13.29"
 }

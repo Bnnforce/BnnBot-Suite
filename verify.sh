@@ -75,7 +75,7 @@ if [ -d "$QDIR" ]; then
   QV="$(node -e "try{console.log(require('$QDIR/package.json').version)}catch(e){console.log('?')}" 2>/dev/null)"
   vok "通道 @zaofan/dsh-qqbot $QV"
 
-  # 上游修复（1.13.25 起补丁已上游化；查功能，不查私有标记）
+  # 上游修复（1.13.29 起补丁已上游化；查功能，不查私有标记）
   UPMISS=0
   _upneed() {
     if grep -q "$2" "$QDIR/$1" 2>/dev/null; then :; else

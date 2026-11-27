@@ -37,9 +37,11 @@ BnnBot 不是一个包，是**三个仓库**配合跑起来的：
 | ① | [dsh-bnnbotbox](https://github.com/Bnnforce/dsh-bnnbotbox) | **人格 + 记忆**插件。让她有性格、记得住人、会主动说话 | ✅ 建议装 |
 | ② | [dsh-qqbot-bnn-custom](https://github.com/Bnnforce/dsh-qqbot-bnn-custom) | **群聊玩法**扩展包。积分、小店、点歌、抽奖、卡片 | 可选 |
 | ③ | **BnnBot 套组**（本仓库） | 部署文档 + 配置说明 + 验收清单 | — |
+| ④ | [dsh-bnnrealme](https://github.com/Bnnforce/dsh-bnnrealme) | **自治调度器**。自检、上游升级、重启守护、日报 | ⚠️ 默认不装（需要 root，有风险） |
 
 > 只想让她「会聊天、有性格」→ 装 ①。
 > 想要积分、点歌、抽奖这些玩法 → 再装 ②。
+> 想让她自己运转（自检/升级/重启）→ 再装 ④。**它有风险，看懂再装。**
 
 ---
 
@@ -63,12 +65,12 @@ BnnBot 不是一个包，是**三个仓库**配合跑起来的：
 把下面这行丢给 DSH（或其他能跑命令的 AI）：
 
 ```
-下载并读完 https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.4.1/INSTALL.md ，按它把 BnnBot 装好。装之前先问我要 QQ 机器人的 AppID 和 AppSecret；装完跑 verify.sh 验收，然后告诉我哪些验证过、哪些需要我自己做。
+下载并读完 https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.5.0/INSTALL.md ，按它把 BnnBot 装好。装之前先问我要 QQ 机器人的 AppID 和 AppSecret；装完跑 verify.sh 验收，然后告诉我哪些验证过、哪些需要我自己做。
 ```
 
-> 📌 **为什么用 `releases/download/v1.4.1/` 而不是 raw 链接**：
+> 📌 **为什么用 `releases/download/v1.5.0/` 而不是 raw 链接**：
 > 本机实测 `raw.githubusercontent.com` 和 `cdn.jsdelivr.net` 会连接重置（HTTP 000），
-> 而 `releases/download/v1.4.1/` 连测 3 次全部 200。国内网络优先用这个。
+> 而 `releases/download/v1.5.0/` 连测 3 次全部 200。国内网络优先用这个。
 
 | 文件 | 用途 |
 |---|---|
@@ -134,7 +136,7 @@ bash verify.sh --workspace /sdcard/DSH
 | **一个 QQ 号** | 需要去 [QQ 开放平台](https://q.qq.com) 注册一个机器人应用，个人开发者可申请 |
 | **一台常开的机器** | 手机 / NAS / 小主机都行。**这台机器得一直开着**，关了她就不在线 |
 | **要花钱** | 模型调用按 token 计费。用便宜模型一天几毛到几块 |
-| **通道插件别乱升** | `@zaofan/dsh-qqbot` 钉在 `1.13.25`。这个版本已合并本套组提交的 5 个修复（PR #88），是**第一个不需要本地补丁**的版本 |
+| **通道插件别乱升** | `@zaofan/dsh-qqbot` 钉在 `1.13.29`。这个版本已合并本套组提交的 5 个修复（PR #88），是**第一个不需要本地补丁**的版本 |
 
 ---
 
@@ -147,10 +149,11 @@ bash verify.sh --workspace /sdcard/DSH
 | **DSH** | `0.2.2-rc.3` | 插件要求 `>= 0.2.0-rc.2`。安卓装 [DeepCode APK](https://github.com/kelai141/dsh-mobile-apk) |
 | **Node.js** | `>= 20`（实测 v24） | 必须 |
 | **pnpm** | `>= 9` | 必须（npm 装 link 依赖会出问题） |
-| `@zaofan/dsh-qqbot` | **`1.13.25`（钉死）** | ⚠️ 必须精确版本。上游只给下限没上限；1.13.25 起我们的修复已进上游，不再需要补丁 |
-| 上游修复校验 | **6 项**（查功能代码） | 1.13.25 已含我们的 5 个修复；install.sh / verify.sh 校验它们没被上游回退 |
-| `dsh-bnnbotbox` | `3.1.1` | |
-| `dsh-qqbot-bnn-custom` | `1.0.57` | |
+| `@zaofan/dsh-qqbot` | **`1.13.29`（钉死）** | ⚠️ 必须精确版本。上游只给下限没上限；1.13.29 起我们的修复已进上游，不再需要补丁 |
+| 上游修复校验 | **6 项**（查功能代码） | 1.13.29 已含我们的 5 个修复；install.sh / verify.sh 校验它们没被上游回退 |
+| `dsh-bnnbotbox` | `3.6.1` | 含 R9 自我系统 |
+| `dsh-qqbot-bnn-custom` | `1.4.0` | 含 R9 群聊理解 |
+| `dsh-bnnrealme`（可选） | `0.2.0` | 自治调度器，默认不装 |
 | `silk-wasm`（可选） | `3.7.1` | 只有发语音条要用 |
 
 ---
