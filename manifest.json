@@ -1,7 +1,7 @@
 {
   "suite": "BnnBot-Suite",
   "title": "BnnBot 套组",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "updated": "2026-11-27",
   "description": "QQ 机器人「人格 + 记忆 + 玩法」的部署总入口",
   "license": "MIT",
@@ -46,7 +46,7 @@
       "npm": "@zaofan/dsh-qqbot",
       "repo": "https://github.com/zaofan-make/dsh-qqbot",
       "license": "AFL-3.0",
-      "verified": "1.13.27",
+      "verified": "1.13.29",
       "minVersion": "1.13.16",
       "install": {
         "kind": "pnpm",
@@ -100,7 +100,7 @@
       "required": false,
       "repo": "https://github.com/Bnnforce/dsh-qqbot-bnn-custom",
       "license": "MIT",
-      "verified": "1.4.0",
+      "verified": "1.4.1",
       "install": {
         "kind": "copy",
         "to": "{DATA_ROOT}/extension-packs/bnn-custom"
@@ -130,7 +130,7 @@
       "defaultInstall": false,
       "repo": "https://github.com/Bnnforce/dsh-bnnrealme",
       "license": "MIT",
-      "verified": "0.2.0",
+      "verified": "0.3.0",
       "install": {
         "kind": "link",
         "cmd": "pnpm add \"link:{SRC_DIR}/dsh-bnnrealme\"",
