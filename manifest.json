@@ -1,7 +1,7 @@
 {
   "suite": "BnnBot-Suite",
   "title": "BnnBot 套组",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "updated": "2026-11-26",
   "description": "QQ 机器人「人格 + 记忆 + 玩法」的部署总入口",
   "license": "MIT",
@@ -124,7 +124,9 @@
       "name": "dsh-bnnrealme",
       "verified": "0.1.0",
       "optional": true,
-      "note": "自治调度器：自检/上游升级/重启守护/日报"
+      "note": "自治调度器：自检/上游升级/重启守护/日报（进阶，默认不装）",
+      "defaultInstall": false,
+      "risk": "需要 root；守护进程会重启应用。有风险，不建议新手装"
     }
   ],
   "paths": {

@@ -8,7 +8,7 @@
 ## 怎么拿到这份文件（如果你还没拿到）
 
 ```
-https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.4.0/INSTALL.md
+https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.4.1/INSTALL.md
 ```
 
 ⚠️ **不要用 `raw.githubusercontent.com`** —— 本机实测该域名会连接重置（HTTP 000），
@@ -17,8 +17,8 @@ https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.4.0/INSTALL.md
 同目录还有可执行脚本：
 
 ```
-https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.4.0/install.sh
-https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.4.0/verify.sh
+https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.4.1/install.sh
+https://github.com/Bnnforce/BnnBot-Suite/releases/download/v1.4.1/verify.sh
 ```
 
 ---
@@ -185,7 +185,7 @@ bash install.sh \
 
 ```bash
 cd "{PROFILE_DIR}"
-pnpm add @zaofan/dsh-qqbot@1.13.25
+pnpm add @zaofan/dsh-qqbot@1.13.27
 ```
 
 > ⚠️ **必须钉版本，不要装最新版。**
@@ -213,7 +213,7 @@ node -e "console.log(require('{PROFILE_DIR}/node_modules/@zaofan/dsh-qqbot/packa
 
 ```bash
 cd "{PROFILE_DIR}"
-pnpm add @zaofan/dsh-qqbot@1.13.25 --save-exact
+pnpm add @zaofan/dsh-qqbot@1.13.27 --save-exact
 ```
 
 ### 3.2 装插件 `dsh-bnnbotbox`
@@ -266,7 +266,23 @@ node scripts/doctor.mjs --fix     # 期望 ✅ 必需目录齐全
 node scripts/sync-botplay.mjs     # 同步 13 张卡片的运行时副本
 ```
 
-### 3.4 写配置
+### 3.4 （跳过）自治调度器 `dsh-bnnrealme`
+
+> ⚠️ **默认不装。** 这个组件风险较高，装在附录 E，看懂了再装。
+
+**核心功能不依赖它。** 自我系统、群聊理解都在上面装好的插件里。
+
+**它有这些风险：**
+
+| 风险 | 说明 |
+|---|---|
+| 需要 root | 守护进程用 `su` 重启应用 |
+| 会重启 DSH | 改坏了自己拉起，也可能反复失败 |
+| 常驻后台 | 出问题难排查 |
+
+**想装的话看附录 E。**
+
+### 3.5 写配置
 
 编辑 `{PROFILE_DIR}/cordis.patch.yml`，**追加**以下内容：
 
@@ -443,6 +459,67 @@ bash verify.sh --workspace "{WORKSPACE}" --data-root "{DATA_ROOT}"
 | `配置里缺 bnnbotbox 行` | `bnnbotbox` 写成了 `insert` | 改成按 id 覆盖 |
 | 卡片报「模块加载失败」 | 没同步运行时副本 | `node scripts/sync-botplay.mjs` |
 | 扩展包加载不出来 | 目录名不是 `bnn-custom` | 改名 |
+
+---
+
+## 附录 E：自治调度器 dsh-bnnrealme（进阶，有风险）
+
+> ⚠️ **看懂再装。** 它能让 AI 自己重启应用、自动升级插件，但也可能把自己搞挂。
+
+### 它做什么
+
+- 每天自检（跑全量检查 + preflight）
+- 上游 qqbot 插件 patch 版自动升级
+- 改坏了自动重启并恢复
+- 每天写日报
+
+### 它不会做什么
+
+- **不会自动升级 DSH 运行时**（宿主本体，改坏了整个系统起不来）
+- 不会自动升级 APK
+
+### 装法
+
+```bash
+cd ~/bnnbot-src
+git clone --depth 1 https://github.com/Bnnforce/dsh-bnnrealme.git
+
+cd "{PROFILE_DIR}"
+pnpm add link:~/bnnbot-src/dsh-bnnrealme
+```
+
+### 装了之后要做什么
+
+首次使用前，**先确认备份机制可用**：
+
+```bash
+# 1. 检查 guard.sh 语法
+bash -n ~/bnnbot-src/dsh-bnnrealme/scripts/guard.sh
+
+# 2. 确认 root 可用
+su -c 'id'
+
+# 3. 启动守护（脱离进程树）
+su -c "setsid bash ~/bnnbot-src/dsh-bnnrealme/scripts/guard.sh &"
+```
+
+### 出问题怎么办
+
+```bash
+# 停守护
+pkill -f guard.sh
+
+# 手动恢复（从最近备份）
+node ~/bnnbot-src/dsh-bnnrealme/lib/index.js --rollback
+```
+
+### 卸载
+
+```bash
+cd "{PROFILE_DIR}"
+pnpm remove dsh-bnnrealme
+pkill -f guard.sh
+```
 
 ---
 
