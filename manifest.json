@@ -1,7 +1,7 @@
 {
   "suite": "BnnBot-Suite",
   "title": "BnnBot 套组",
-  "version": "2.1.3",
+  "version": "2.2.0",
   "updated": "2026-11-27",
   "description": "QQ 机器人「人格 + 记忆 + 玩法」的部署总入口",
   "license": "MIT",
@@ -70,7 +70,7 @@
       "recommended": true,
       "repo": "https://github.com/Bnnforce/dsh-bnnbotbox",
       "license": "MIT",
-      "verified": "3.7.0",
+      "verified": "3.8.0",
       "install": {
         "kind": "link",
         "cmd": "pnpm add \"link:{SRC_DIR}/dsh-bnnbotbox\""
@@ -100,7 +100,7 @@
       "required": false,
       "repo": "https://github.com/Bnnforce/dsh-qqbot-bnn-custom",
       "license": "MIT",
-      "verified": "2.1.1",
+      "verified": "2.2.0",
       "install": {
         "kind": "copy",
         "to": "{DATA_ROOT}/extension-packs/bnn-custom"
